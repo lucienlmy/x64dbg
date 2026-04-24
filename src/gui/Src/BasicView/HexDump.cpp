@@ -657,6 +657,16 @@ void HexDump::keyPressEvent(QKeyEvent* event)
     }
     if(modifiers == Qt::NoModifier)
     {
+        auto firstVisibleSelection = [this]()
+        {
+            dsint rva = dsint(getTableOffset()) * dsint(getBytePerRowCount()) - mByteOffset;
+            return rva > 0 ? duint(rva) : 0;
+        };
+        auto lastValidSelection = [this]()
+        {
+            return mMemPage->getSize() ? mMemPage->getSize() - 1 : 0;
+        };
+
         //selStart -= selStart % granularity; //Align the selection to word boundary. TODO: Unaligned data?
         switch(key)
         {
@@ -688,6 +698,34 @@ void HexDump::keyPressEvent(QKeyEvent* event)
                 action = 1;
         }
         break;
+        case Qt::Key_PageUp:
+        {
+            AbstractTableView::keyPressEvent(event);
+            if(mMemPage->getSize())
+            {
+                selStart = firstVisibleSelection();
+                if(selStart > lastValidSelection())
+                    selStart = lastValidSelection();
+                action = -2;
+            }
+        }
+        break;
+        case Qt::Key_PageDown:
+        {
+            AbstractTableView::keyPressEvent(event);
+            if(mMemPage->getSize())
+            {
+                auto viewableRows = getViewableRowsCount();
+                auto lastVisibleRva = firstVisibleSelection();
+                if(viewableRows > 1)
+                    lastVisibleRva += (viewableRows - 1) * getBytePerRowCount();
+                selStart = lastVisibleRva;
+                if(selStart > lastValidSelection())
+                    selStart = lastValidSelection();
+                action = 2;
+            }
+        }
+        break;
         default:
             AbstractTableView::keyPressEvent(event);
         }
@@ -701,7 +739,13 @@ void HexDump::keyPressEvent(QKeyEvent* event)
                 verticalScrollBar()->triggerAction(QAbstractSlider::SliderSingleStepSub);
             setSingleSelection(selStart);
             if(granularity > 1)
-                expandSelectionUpTo(selStart + granularity - 1);
+            {
+                auto selectionEnd = selStart + granularity - 1;
+                auto lastSelection = lastValidSelection();
+                if(selectionEnd > lastSelection)
+                    selectionEnd = lastSelection;
+                expandSelectionUpTo(selectionEnd);
+            }
             reloadData();
             if(QAccessible::isActive())
             {
