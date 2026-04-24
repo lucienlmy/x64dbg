@@ -363,6 +363,10 @@ void ScriptView::keyPressEvent(QKeyEvent* event)
         }
         reloadData();
     }
+    else if(key == Qt::Key_PageUp || key == Qt::Key_PageDown)
+    {
+        AbstractStdTable::keyPressEvent(event);
+    }
     else if(key == Qt::Key_Return || key == Qt::Key_Enter)
     {
         int line = getInitialSelection() + 1;

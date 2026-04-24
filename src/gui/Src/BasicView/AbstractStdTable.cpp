@@ -430,6 +430,54 @@ void AbstractStdTable::keyPressEvent(QKeyEvent* event)
     int key = event->key();
     Qt::KeyboardModifiers modifiers = event->modifiers();
 
+    if(key == Qt::Key_PageUp || key == Qt::Key_PageDown)
+    {
+        if(modifiers == Qt::NoModifier || modifiers == Qt::KeypadModifier || (mIsMultiSelectionAllowed && modifiers == Qt::ShiftModifier))
+        {
+            verticalScrollBar()->triggerAction(key == Qt::Key_PageUp ? QAbstractSlider::SliderPageStepSub : QAbstractSlider::SliderPageStepAdd);
+
+            if(getRowCount() == 0)
+                return;
+
+            auto selectedIndex = getTableOffset();
+            if(key == Qt::Key_PageDown && getNbrOfLineToPrint() > 1)
+                selectedIndex += getNbrOfLineToPrint() - 1;
+
+            if(selectedIndex >= getRowCount())
+                selectedIndex = getRowCount() - 1;
+
+            if(mIsMultiSelectionAllowed && modifiers == Qt::ShiftModifier)
+            {
+                while(getInitialSelection() < selectedIndex)
+                {
+                    auto previousIndex = getInitialSelection();
+                    expandDown();
+                    if(getInitialSelection() == previousIndex)
+                        break;
+                }
+                while(getInitialSelection() > selectedIndex)
+                {
+                    auto previousIndex = getInitialSelection();
+                    expandUp();
+                    if(getInitialSelection() == previousIndex)
+                        break;
+                }
+            }
+            else
+            {
+                setSingleSelection(selectedIndex);
+            }
+
+            // TODO: only update if the selection actually changed
+            updateViewport();
+        }
+        else
+        {
+            AbstractTableView::keyPressEvent(event);
+        }
+        return;
+    }
+
     if(key == Qt::Key_Up ||
             key == Qt::Key_Down ||
             key == Qt::Key_Home ||

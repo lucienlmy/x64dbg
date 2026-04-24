@@ -1171,6 +1171,36 @@ void TraceBrowser::keyPressEvent(QKeyEvent* event)
 
         emit selectionChanged(getInitialSelection());
     }
+    else if((key == Qt::Key_PageUp || key == Qt::Key_PageDown) && getTraceFile())
+    {
+        if(event->modifiers() == Qt::NoModifier || event->modifiers() == Qt::KeypadModifier || event->modifiers() == Qt::ShiftModifier)
+        {
+            verticalScrollBar()->triggerAction(key == Qt::Key_PageUp ? QAbstractSlider::SliderPageStepSub : QAbstractSlider::SliderPageStepAdd);
+
+            auto length = getTraceFile()->Length();
+            if(length == 0)
+                return;
+
+            visibleindex = getTableOffset();
+            if(key == Qt::Key_PageDown && getNbrOfLineToPrint() > 1)
+                visibleindex += getNbrOfLineToPrint() - 1;
+            if(visibleindex >= length)
+                visibleindex = length - 1;
+
+            if(event->modifiers() == Qt::ShiftModifier)
+                expandSelectionUpTo(visibleindex);
+            else
+                setSingleSelection(visibleindex);
+
+            mHistory.addVaToHistory(visibleindex);
+            updateViewport();
+            emit selectionChanged(getInitialSelection());
+        }
+        else
+        {
+            AbstractTableView::keyPressEvent(event);
+        }
+    }
     else
         AbstractTableView::keyPressEvent(event);
 }
