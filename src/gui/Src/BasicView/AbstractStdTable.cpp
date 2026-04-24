@@ -434,6 +434,33 @@ void AbstractStdTable::keyPressEvent(QKeyEvent* event)
     {
         if(modifiers == Qt::NoModifier || modifiers == Qt::KeypadModifier || (mIsMultiSelectionAllowed && modifiers == Qt::ShiftModifier))
         {
+            auto moveSelectionEdge = [this](duint index)
+            {
+                auto currentIndex = getInitialSelection();
+                if(index < currentIndex)
+                {
+                    if(index < mSelection.fromIndex)
+                        mSelection.fromIndex = index;
+                    else
+                        mSelection.toIndex = index;
+                }
+                else if(index > currentIndex)
+                {
+                    if(index > mSelection.toIndex)
+                        mSelection.toIndex = index;
+                    else
+                        mSelection.fromIndex = index;
+                }
+                else
+                {
+                    return;
+                }
+
+                mSelection.firstSelectedIndex = index;
+                emit selectionChanged(index);
+                accessibilitySelectionChanged();
+            };
+
             verticalScrollBar()->triggerAction(key == Qt::Key_PageUp ? QAbstractSlider::SliderPageStepSub : QAbstractSlider::SliderPageStepAdd);
 
             if(getRowCount() == 0)
@@ -447,26 +474,9 @@ void AbstractStdTable::keyPressEvent(QKeyEvent* event)
                 selectedIndex = getRowCount() - 1;
 
             if(mIsMultiSelectionAllowed && modifiers == Qt::ShiftModifier)
-            {
-                while(getInitialSelection() < selectedIndex)
-                {
-                    auto previousIndex = getInitialSelection();
-                    expandDown();
-                    if(getInitialSelection() == previousIndex)
-                        break;
-                }
-                while(getInitialSelection() > selectedIndex)
-                {
-                    auto previousIndex = getInitialSelection();
-                    expandUp();
-                    if(getInitialSelection() == previousIndex)
-                        break;
-                }
-            }
+                moveSelectionEdge(selectedIndex);
             else
-            {
                 setSingleSelection(selectedIndex);
-            }
 
             // TODO: only update if the selection actually changed
             updateViewport();
