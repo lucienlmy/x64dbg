@@ -1119,25 +1119,27 @@ void TraceBrowser::keyPressEvent(QKeyEvent* event)
     auto visibleindex = curindex;
     if((key == Qt::Key_Up || key == Qt::Key_Down) && getTraceFile())
     {
+        auto setSelectionCaret = [this](duint caret)
+        {
+            auto anchor = getInitialSelection();
+            mSelection.fromIndex = qMin(anchor, caret);
+            mSelection.toIndex = qMax(anchor, caret);
+        };
+        auto selectionCaret = [this]()
+        {
+            auto anchor = getInitialSelection();
+            return anchor == getSelectionStart() ? getSelectionEnd() : getSelectionStart();
+        };
+
         if(key == Qt::Key_Up)
         {
             if(event->modifiers() == Qt::ShiftModifier)
             {
-                if(curindex == getSelectionStart())
+                auto caret = selectionCaret();
+                if(caret > 0)
                 {
-                    if(getSelectionEnd() > 0)
-                    {
-                        visibleindex = getSelectionEnd() - 1;
-                        expandSelectionUpTo(visibleindex);
-                    }
-                }
-                else
-                {
-                    if(getSelectionStart() > 0)
-                    {
-                        visibleindex = getSelectionStart() - 1;
-                        expandSelectionUpTo(visibleindex);
-                    }
+                    visibleindex = caret - 1;
+                    setSelectionCaret(visibleindex);
                 }
             }
             else
@@ -1151,12 +1153,17 @@ void TraceBrowser::keyPressEvent(QKeyEvent* event)
         }
         else
         {
-            if(getSelectionEnd() + 1 < getTraceFile()->Length())
+            auto length = getTraceFile()->Length();
+            if(getSelectionEnd() + 1 < length)
             {
                 if(event->modifiers() == Qt::ShiftModifier)
                 {
-                    visibleindex = getSelectionEnd() + 1;
-                    expandSelectionUpTo(visibleindex);
+                    auto caret = selectionCaret();
+                    if(caret + 1 < length)
+                    {
+                        visibleindex = caret + 1;
+                        setSelectionCaret(visibleindex);
+                    }
                 }
                 else
                 {
@@ -1175,6 +1182,13 @@ void TraceBrowser::keyPressEvent(QKeyEvent* event)
     {
         if(event->modifiers() == Qt::NoModifier || event->modifiers() == Qt::KeypadModifier || event->modifiers() == Qt::ShiftModifier)
         {
+            auto setSelectionCaret = [this](duint caret)
+            {
+                auto anchor = getInitialSelection();
+                mSelection.fromIndex = qMin(anchor, caret);
+                mSelection.toIndex = qMax(anchor, caret);
+            };
+
             verticalScrollBar()->triggerAction(key == Qt::Key_PageUp ? QAbstractSlider::SliderPageStepSub : QAbstractSlider::SliderPageStepAdd);
 
             auto length = getTraceFile()->Length();
@@ -1188,7 +1202,7 @@ void TraceBrowser::keyPressEvent(QKeyEvent* event)
                 visibleindex = length - 1;
 
             if(event->modifiers() == Qt::ShiftModifier)
-                expandSelectionUpTo(visibleindex);
+                setSelectionCaret(visibleindex);
             else
                 setSingleSelection(visibleindex);
 
