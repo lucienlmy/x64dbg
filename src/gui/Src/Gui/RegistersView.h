@@ -143,7 +143,6 @@ public slots:
     void reload();
     void ShowFPU(bool set_showfpu);
     void onChangeFPUViewAction();
-    void SetChangeButton(QPushButton* push_button);
 
 signals:
     void refresh();
@@ -202,7 +201,6 @@ protected slots:
     void onCopyAllAction();
 protected:
     bool isActive;
-    QPushButton* mChangeViewButton;
     bool mShowFpu;
     int mVScrollOffset;
     int mRowsNeeded;

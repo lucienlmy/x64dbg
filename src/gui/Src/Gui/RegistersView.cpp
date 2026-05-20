@@ -77,12 +77,6 @@ int RegistersView::getEstimateHeight()
     return mRowsNeeded * mRowHeight;
 }
 
-void RegistersView::SetChangeButton(QPushButton* push_button)
-{
-    mChangeViewButton = push_button;
-    fontsUpdatedSlot();
-}
-
 void RegistersView::InitMappings()
 {
     // create mapping from internal id to name
@@ -994,7 +988,6 @@ QAction* RegistersView::setupAction(const QString & text)
 RegistersView::RegistersView(QWidget* parent) : QScrollArea(parent), mVScrollOffset(0)
 {
     setAccessibleName(tr("Registers"));
-    mChangeViewButton = NULL;
     mShowFpu = false;
     mSelected = UNKNOWN;
     mFpuMode = 0;
@@ -1583,8 +1576,6 @@ void RegistersView::fontsUpdatedSlot()
 {
     auto font = ConfigFont("Registers");
     setFont(font);
-    if(mChangeViewButton)
-        mChangeViewButton->setFont(font);
     //update metrics information
     int rowHeight = QFontMetrics(this->font()).height();
     rowHeight = (rowHeight * 105) / 100;
@@ -1938,14 +1929,6 @@ void RegistersView::updateCanvasSize()
 
 void RegistersView::paintRegisters(QPainter* p, const QRect & clip)
 {
-    if(mChangeViewButton != NULL)
-    {
-        if(mShowFpu)
-            mChangeViewButton->setText(tr("Hide FPU"));
-        else
-            mChangeViewButton->setText(tr("Show FPU"));
-    }
-
     p->setClipRect(clip);
     p->setFont(font());
     p->fillRect(mCanvas ? mCanvas->rect() : clip, QBrush(ConfigColor("RegistersBackgroundColor")));

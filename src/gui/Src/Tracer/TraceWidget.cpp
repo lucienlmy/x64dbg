@@ -50,17 +50,11 @@ TraceWidget::TraceWidget(Architecture* architecture, const QString & fileName, Q
     mGeneralRegs->setFrameShape(QFrame::NoFrame);
     mGeneralRegs->ShowFPU(true);
 
-    QPushButton* button_changeview = new QPushButton("", this);
-    button_changeview->setStyleSheet("Text-align:left;padding: 4px;padding-left: 10px;");
-    connect(button_changeview, SIGNAL(clicked()), mGeneralRegs, SLOT(onChangeFPUViewAction()));
     connect(mTraceBrowser, SIGNAL(selectionChanged(TRACEINDEX)), this, SLOT(traceSelectionChanged(TRACEINDEX)));
     connect(mTraceBrowser, SIGNAL(displayLogWidget()), this, SLOT(displayLogWidgetSlot()));
     connect(mTraceFile, SIGNAL(parseFinished()), this, SLOT(parseFinishedSlot()));
     connect(mTraceBrowser, SIGNAL(closeFile()), this, SLOT(closeFileSlot()));
 
-    mGeneralRegs->SetChangeButton(button_changeview);
-
-    ui->mTopRightUpperFrameLayout->addWidget(button_changeview);
     ui->mTopRightUpperFrameLayout->addWidget(mGeneralRegs);
     ui->mTopHSplitter->setCollapsible(1, true); // allow collapsing the RegisterView
 

@@ -69,14 +69,9 @@ CPUWidget::CPUWidget(Architecture* architecture, QWidget* parent)
     mGeneralRegs->setFrameShape(QFrame::NoFrame);
     mGeneralRegs->ShowFPU(true);
 
-    QPushButton* button_changeview = new QPushButton("", this);
-    connect(button_changeview, SIGNAL(clicked()), mGeneralRegs, SLOT(onChangeFPUViewAction()));
-    mGeneralRegs->SetChangeButton(button_changeview);
-
     ui->mTopRightVSplitter->setCollapsible(1, true); //allow collapsing of the ArgumentWidget
     connect(ui->mTopRightVSplitter, SIGNAL(splitterMoved(int, int)), this, SLOT(splitterMoved(int, int)));
 
-    ui->mTopRightUpperFrameLayout->addWidget(button_changeview);
     ui->mTopRightUpperFrameLayout->addWidget(mGeneralRegs);
     ui->mTopHSplitter->setCollapsible(1, true); // allow collapsing of the RegisterView
 
