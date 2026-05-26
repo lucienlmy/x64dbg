@@ -173,6 +173,7 @@ endfunction()
 set(X64DBG_STANDARD_TESTS
     issue3803
     issue3808
+    issue3865
     cmdline_init
     cmdline_setcommandline
     guard_page

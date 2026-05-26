@@ -814,7 +814,7 @@ static const char* applyCommandlineArguments(const CommandlineArguments & args)
     if(!args.commandFile.empty())
     {
         auto commandFile = args.commandFile;
-        if(!PathIsRootW(StringUtils::Utf8ToUtf16(commandFile).c_str()))
+        if(PathIsRelativeW(StringUtils::Utf8ToUtf16(commandFile).c_str()))
             commandFile = workingDir + "\\" + commandFile;
         if(!FileExists(commandFile.c_str()))
             return _strdup(StringUtils::sprintf("Error: Command file \"%s\" couldn't be opened.\n", commandFile.c_str()).c_str());

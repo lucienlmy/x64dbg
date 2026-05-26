@@ -16,6 +16,7 @@ FINAL_RE = re.compile(r"^\[x64dbg-test\] FINAL status=(?P<status>pass|fail) asse
 TEST_LOG_RE = re.compile(r"^\[x64dbg-test\]")
 ARTIFACT_GITIGNORE = ".gitignore"
 ARTIFACT_GITIGNORE_MARKER = "# x64dbg-test\n*"
+ABSOLUTE_CF_MARKER = "absolute_cf"
 DEBUG_ENGINE_VALUES = {
     "TitanEngine": 0,
     "GleeBug": 1,
@@ -33,6 +34,7 @@ class TestCase:
     debuggee: Path
     plugins: list[Path]
     fallback_check: Path | None
+    absolute_command_file: bool
 
 
 @dataclass
@@ -144,6 +146,7 @@ def discover_tests(repo_root: Path, arch: str, requested: set[str], validate_run
                 debuggee=debuggee,
                 plugins=sorted(runtime_dir.glob(f"*{plugin_suffix}")),
                 fallback_check=variant_check_path(script.parent, variant),
+                absolute_command_file=(script.parent / ABSOLUTE_CF_MARKER).is_file(),
             )
         )
         seen_rel.add(rel)
@@ -272,12 +275,13 @@ def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, 
     ]
     for plugin in test.plugins:
         command.extend(["-plugin", path_arg(plugin, headless_dir)])
+    command_file = str(test.runtime_script) if test.absolute_command_file else path_arg(test.runtime_script, headless_dir)
     command.extend(
         [
             "-c",
             f'RedirectLog "{path_arg(log_path, headless_dir)}"',
             "-cf",
-            path_arg(test.runtime_script, headless_dir),
+            command_file,
         ]
     )
 

@@ -31,6 +31,7 @@ src/tests/<rel>/
   optional test.<variant>.txt
   optional check.py
   optional check.<variant>.py
+  optional absolute_cf
   optional README.md
 ```
 
@@ -41,6 +42,7 @@ Conventions:
 - `test.txt` is the primary script for test id `<rel>`
 - `test.<variant>.txt` creates test id `<rel>/<variant>`
 - `check.py` and `check.<variant>.py` are optional fallback validators used by `run.py`
+- `absolute_cf` makes `run.py` pass the script path to `-cf` as an absolute path
 
 Examples:
 
