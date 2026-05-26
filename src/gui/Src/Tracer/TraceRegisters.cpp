@@ -131,6 +131,7 @@ void TraceRegisters::displayCustomContextMenuSlot(QPoint pos)
             menu.addAction(mDisplayx87rX);
         if(mFpuMode != 2)
             menu.addAction(mDisplayMMX);
+        menu.exec(this->mapToGlobal(pos));
     }
 }
 
