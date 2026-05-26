@@ -944,6 +944,17 @@ void Disassembly::keyPressEvent(QKeyEvent* event)
         // TODO: only update if the selection actually changed
         updateViewport();
     }
+    else if((event->modifiers() == Qt::NoModifier || event->modifiers() == Qt::KeypadModifier) && (key == Qt::Key_PageUp || key == Qt::Key_PageDown))
+    {
+        AbstractTableView::keyPressEvent(event);
+
+        auto selectedRva = getTableOffset();
+        if(key == Qt::Key_PageDown && getNbrOfLineToPrint() > 1)
+            selectedRva = getInstructionRVA(selectedRva, getNbrOfLineToPrint() - 1);
+
+        setSingleSelection(selectedRva);
+        updateViewport();
+    }
     else if(key == Qt::Key_Return || key == Qt::Key_Enter)
     {
         followInstruction(getInitialSelection());
