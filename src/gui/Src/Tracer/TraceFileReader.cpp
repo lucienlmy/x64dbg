@@ -254,8 +254,12 @@ void TraceFileReader::MemoryAccessInfo(TRACEINDEX index, duint* address, duint* 
         return page->MemoryAccessInfo(index - base, address, oldMemory, newMemory, isValid);
 }
 
+// The following macro is used to simulate memory status change in debugging
+//#define MEMORY_STATE_RANDOMIZATION 1
+
 static size_t getMaxCachedPages()
 {
+#ifndef MEMORY_STATE_RANDOMIZATION
 #ifdef _WIN64
     MEMORYSTATUSEX meminfo;
     memset(&meminfo, 0, sizeof(meminfo));
@@ -274,6 +278,10 @@ static size_t getMaxCachedPages()
         return 100;
 #else //x86
     return 100;
+#endif
+#else
+    // To debug memory status changes
+    return rand() * 200 / RAND_MAX + 10;
 #endif
 }
 
@@ -318,6 +326,13 @@ TraceFilePage* TraceFileReader::getPage(TRACEINDEX index, TRACEINDEX* base)
             {
                 pageOutTime = i.second.lastAccessed;
                 pageOutIndex = i.first;
+            }
+        }
+        if(lastAccessedPage)
+        {
+            if(pageOutIndex.first == lastAccessedIndexOffset)
+            {
+                lastAccessedPage = nullptr; // going to delete this page
             }
         }
         pages.erase(pageOutIndex);
