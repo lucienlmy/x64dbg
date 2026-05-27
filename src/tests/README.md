@@ -29,6 +29,8 @@ src/tests/<rel>/
   optional plugin.cpp
   test.txt
   optional test.<variant>.txt
+  optional driver.py
+  optional driver.<variant>.py
   optional check.py
   optional check.<variant>.py
   optional absolute_cf
@@ -41,6 +43,7 @@ Conventions:
 - `plugin.cpp` is optional; if present it is built automatically as `<rel>.dp32|dp64`
 - `test.txt` is the primary script for test id `<rel>`
 - `test.<variant>.txt` creates test id `<rel>/<variant>`
+- `driver.py` and `driver.<variant>.py` are optional Python drivers for tests that need custom process setup before headless starts
 - `check.py` and `check.<variant>.py` are optional fallback validators used by `run.py`
 - `absolute_cf` makes `run.py` pass the script path to `-cf` as an absolute path
 
