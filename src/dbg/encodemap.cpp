@@ -215,6 +215,8 @@ duint GetEncodeTypeSize(ENCODETYPE type)
         return 16;
     case enc_ymmword:
         return 32;
+    case enc_zmmword:
+        return 64;
     case enc_real4:
         return 4;
     case enc_real8:
