@@ -16,6 +16,7 @@
 #include "database.h"
 #include "exception.h"
 #include "stringformat.h"
+#include "simplescript.h"
 
 static bool isInt3Exception()
 {
@@ -329,6 +330,7 @@ bool cbDebugAttach(int argc, char* argv[])
     static INIT_STRUCT init;
     init.attach = true;
     init.pid = (DWORD)pid;
+    init.pauseAtAttach = ScriptIsExecutingCommand();
     dbgcreatedebugthread(&init);
     return true;
 }

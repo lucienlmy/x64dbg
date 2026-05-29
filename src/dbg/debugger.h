@@ -41,6 +41,7 @@ struct INIT_STRUCT
     uint32_t entryPointRva = 0;
     DWORD pid = 0;
     bool attach = false;
+    bool pauseAtAttach = false;
     bool isDll = false;
 };
 

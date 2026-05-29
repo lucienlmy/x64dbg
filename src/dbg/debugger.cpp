@@ -50,6 +50,7 @@ static duint pDebuggedEntry = 0;
 static bool bRepeatIn = false;
 static duint stepRepeat = 0;
 static bool bIsAttached = false;
+static bool bPauseAtAttach = false;
 static bool bSkipExceptions = false;
 static duint skipExceptionCount = 0;
 static bool bFreezeStack = false;
@@ -1788,6 +1789,30 @@ static DWORD WINAPI cbInitializationScriptThread(void*)
     return 0;
 }
 
+static void startInitializationScriptThread()
+{
+    CloseHandle(CreateThread(NULL, 0, cbInitializationScriptThread, NULL, 0, NULL));
+}
+
+static void waitAtDebugEvent(bool pause)
+{
+    // Allow the user to run a script file now.
+    lock(WAITID_RUN);
+    if(pause)
+    {
+        //lock
+        GuiSetDebugStateAsync(paused);
+        // Plugin callback
+        PLUG_CB_PAUSEDEBUG pauseInfo = { nullptr };
+        plugincbcall(CB_PAUSEDEBUG, &pauseInfo);
+        dbgsetforeground();
+    }
+    startInitializationScriptThread();
+    if(!pause)
+        unlock(WAITID_RUN);
+    wait(WAITID_RUN);
+}
+
 static void cbSystemBreakpoint(const void* ExceptionData) // TODO: System breakpoint event shouldn't be dropped
 {
     hActiveThread = ThreadGetHandle(GetDebugData()->dwThreadId);
@@ -1812,29 +1837,13 @@ static void cbSystemBreakpoint(const void* ExceptionData) // TODO: System breakp
     callbackInfo.reserved = 0;
     plugincbcall(CB_SYSTEMBREAKPOINT, &callbackInfo);
 
-    lock(WAITID_RUN); // Allow the user to run a script file now
     bool systemBreakpoint = settingboolget("Events", "SystemBreakpoint", true);
     if(!systemBreakpoint && bEntryIsInMzHeader)
     {
         dputs(QT_TRANSLATE_NOOP("DBG", "It has been detected that the debuggee entry point is in the MZ header of the executable. This will cause strange behavior, so the system breakpoint has been enabled regardless of your setting. Be careful!"));
         systemBreakpoint = true;
     }
-    if(systemBreakpoint)
-    {
-        //lock
-        GuiSetDebugStateAsync(paused);
-        // Plugin callback
-        PLUG_CB_PAUSEDEBUG pauseInfo = { nullptr };
-        plugincbcall(CB_PAUSEDEBUG, &pauseInfo);
-        dbgsetforeground();
-        CloseHandle(CreateThread(NULL, 0, cbInitializationScriptThread, NULL, 0, NULL));
-    }
-    else
-    {
-        CloseHandle(CreateThread(NULL, 0, cbInitializationScriptThread, NULL, 0, NULL));
-        unlock(WAITID_RUN);
-    }
-    wait(WAITID_RUN);
+    waitAtDebugEvent(systemBreakpoint);
 }
 
 static void cbLoadDll(LOAD_DLL_DEBUG_INFO* LoadDll)
@@ -2255,6 +2264,13 @@ static void cbAttachDebugger()
 
     dputs(QT_TRANSLATE_NOOP("DBG", "Attached to process!"));
     dbgsetskipexceptions(false); //we are not skipping first-chance exceptions
+
+    if(bPauseAtAttach)
+    {
+        // Script-driven attach needs a stable debug context before the attach command returns.
+        // The debuggee is stopped by a pending CREATE_PROCESS_DEBUG_EVENT until WAITID_RUN is unlocked.
+        waitAtDebugEvent(true);
+    }
 }
 
 cmdline_qoutes_placement_t getqoutesplacement(const char* cmdline)
@@ -2844,6 +2860,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
 {
     //initialize variables
     bIsAttached = init->attach;
+    bPauseAtAttach = init->attach && init->pauseAtAttach;
     dbgsetskipexceptions(false);
     bFreezeStack = false;
 
@@ -3054,6 +3071,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
     TraceRecord.clear();
     TraceRecord.enableTraceRecording(false, nullptr); // Stop trace recording
     bIsDebugging = false;
+    bPauseAtAttach = false;
     GuiSetDebugState(stopped);
     GuiUpdateAllViews();
     dputs(QT_TRANSLATE_NOOP("DBG", "Debugging stopped!"));
