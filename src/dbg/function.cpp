@@ -2,6 +2,7 @@
 #include "module.h"
 #include "memory.h"
 #include "threading.h"
+#include "database_cb_batcher.h"
 
 struct FunctionSerializer : JSONWrapper<FUNCTIONSINFO>
 {
@@ -83,7 +84,12 @@ bool FunctionAdd(duint Start, duint End, bool Manual, duint InstructionCount, du
     function.parent = Parent ? Parent : Start;
     function.parent -= moduleBase;
 
-    return functions.Add(function);
+    if(functions.Add(function))
+    {
+        DbCbNotifyFunction(DbOperationType::Add, function.modhash, function.start, function.end, InstructionCount, function.parent, Manual);
+        return true;
+    }
+    return false;
 }
 
 bool FunctionGet(duint Address, duint* Start, duint* End, duint* InstrCount, duint* Parent)
@@ -113,7 +119,18 @@ bool FunctionOverlaps(duint Start, duint End)
 
 bool FunctionDelete(duint Address)
 {
-    return functions.Delete(Functions::VaKey(Address, Address));
+    FUNCTIONSINFO info;
+    if(functions.Get(Functions::VaKey(Address, Address),info))
+    {
+        if(functions.Delete(Functions::VaKey(Address, Address)))
+        {
+            DbCbNotifyFunction(DbOperationType::Remove, info.modhash, info.start);
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void FunctionDelRange(duint Start, duint End, bool DeleteManual)
@@ -141,6 +158,9 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
             if(!DeleteManual && value.manual)
                 return false;
             return value.end >= Start && value.start <= End;
+        }, [](const FUNCTIONSINFO & function)
+        {
+            DbCbNotifyFunction(DbOperationType::Remove, function.modhash, function.start);
         });
     }
 }
@@ -163,7 +183,15 @@ bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size)
 
 void FunctionClear()
 {
+    std::vector<FUNCTIONSINFO> allFunctions;
+    FunctionGetList(allFunctions);
+
     functions.Clear();
+
+    for(const auto& function : allFunctions)
+    {
+        DbCbNotifyFunction(DbOperationType::Remove, function.modhash, function.start);
+    }
 }
 
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list)

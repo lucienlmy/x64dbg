@@ -1,4 +1,5 @@
 #include "bookmark.h"
+#include "database_cb_batcher.h"
 
 struct BookmarkSerializer : AddrInfoSerializer<BOOKMARKSINFO>
 {
@@ -22,7 +23,12 @@ bool BookmarkSet(duint Address, bool Manual)
     auto key = Bookmarks::VaKey(Address);
     if(bookmarks.Contains(key))
         return bookmarks.Delete(key);
-    return bookmarks.Add(bookmark);
+    if(bookmarks.Add(bookmark))
+    {
+        DbCbNotifyBookmark(DbOperationType::Add, bookmark.modhash, bookmark.addr, Manual);
+        return true;
+    }
+    return false;
 }
 
 bool BookmarkGet(duint Address)
@@ -32,12 +38,26 @@ bool BookmarkGet(duint Address)
 
 bool BookmarkDelete(duint Address)
 {
-    return bookmarks.Delete(Bookmarks::VaKey(Address));
+    BOOKMARKSINFO info;
+    if(bookmarks.Get(Bookmarks::VaKey(Address),info))
+    {
+        if(bookmarks.Delete(Bookmarks::VaKey(Address)))
+        {
+            DbCbNotifyBookmark(DbOperationType::Remove, info.modhash, info.addr);
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void BookmarkDelRange(duint Start, duint End, bool Manual)
 {
-    bookmarks.DeleteRange(Start, End, Manual);
+    bookmarks.DeleteRange(Start, End, Manual, [](const BOOKMARKSINFO & bookmark)
+    {
+        DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
+    });
 }
 
 void BookmarkCacheSave(JSON Root)
@@ -58,7 +78,15 @@ bool BookmarkEnum(BOOKMARKSINFO* List, size_t* Size)
 
 void BookmarkClear()
 {
+    std::vector<BOOKMARKSINFO> allBookmarks;
+    BookmarkGetList(allBookmarks);
+
     bookmarks.Clear();
+
+    for(const auto& bookmark : allBookmarks)
+    {
+        DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
+    }
 }
 
 void BookmarkGetList(std::vector<BOOKMARKSINFO> & list)

@@ -1,4 +1,5 @@
 #include "label.h"
+#include "database_cb_batcher.h"
 
 struct LabelSerializer : AddrInfoSerializer<LABELSINFO>
 {
@@ -48,7 +49,12 @@ bool LabelSet(duint Address, const char* Text, bool Manual, bool Temp)
     if(!labels.PrepareValue(label, Address, Manual))
         return false;
     label.text = Text;
-    return labels.Add(label);
+    if(labels.Add(label))
+    {
+        DbCbNotifyLabel(DbOperationType::Add, label.modhash, label.addr, Text, Manual);
+        return true;
+    }
+    return false;
 }
 
 bool LabelFromString(const char* Text, duint* Address)
@@ -101,12 +107,28 @@ bool LabelIsTemporary(duint Address)
 
 bool LabelDelete(duint Address)
 {
-    return labels.Delete(Labels::VaKey(Address)) || tempLabels.erase(Address) > 0;
+    LABELSINFO info;
+    if(labels.Get(Labels::VaKey(Address),info))
+    {
+        if(labels.Delete(Labels::VaKey(Address)))
+        {
+            DbCbNotifyLabel(DbOperationType::Remove, info.modhash, info.addr);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    return tempLabels.erase(Address) > 0;
 }
 
 void LabelDelRange(duint Start, duint End, bool Manual)
 {
-    labels.DeleteRange(Start, End, Manual);
+    labels.DeleteRange(Start, End, Manual, [](const LABELSINFO & label)
+    {
+        DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
+    });
     if(Start == 0 && End == ~0)
     {
         tempLabels.clear();
@@ -136,8 +158,16 @@ void LabelCacheLoad(JSON Root)
 
 void LabelClear()
 {
+    std::vector<LABELSINFO> allLabels;
+    LabelGetList(allLabels);
+
     labels.Clear();
     tempLabels.clear();
+
+    for(const auto& label : allLabels)
+    {
+        DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
+    }
 }
 
 void LabelGetList(std::vector<LABELSINFO> & list)

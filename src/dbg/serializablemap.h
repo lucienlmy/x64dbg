@@ -138,13 +138,18 @@ public:
         return mMap.erase(key) > 0;
     }
 
-    void DeleteWhere(TValuePred predicate)
+    void DeleteWhere(TValuePred predicate, std::function<void(const TValue&)> onEvict = nullptr)
     {
         EXCLUSIVE_ACQUIRE(TLock);
         for(auto itr = mMap.begin(); itr != mMap.end();)
         {
             if(predicate(itr->second))
+            {
+                if(onEvict)
+                    onEvict(itr->second);
+
                 itr = mMap.erase(itr);
+            }
             else
                 ++itr;
         }
@@ -301,7 +306,7 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
         return ModHashFromAddr(addr);
     }
 
-    void DeleteRangeWhere(duint start, duint end, std::function<bool(duint, duint, const TValue &)> inRange)
+    void DeleteRangeWhere(duint start, duint end, std::function<bool(duint, duint, const TValue &)> inRange, std::function<void(const TValue&)> onEvict = nullptr)
     {
         // Are all comments going to be deleted?
         // 0x00000000 - 0xFFFFFFFF
@@ -324,7 +329,7 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
             this->DeleteWhere([start, end, inRange](const TValue & value)
             {
                 return inRange(start, end, value);
-            });
+            }, onEvict);
         }
     }
 };
@@ -388,14 +393,14 @@ struct AddrInfoHashMap : SerializableModuleHashMap<TLock, TValue, TSerializer>
         return true;
     }
 
-    void DeleteRange(duint start, duint end, bool manual)
+    void DeleteRange(duint start, duint end, bool manual, std::function<void(const TValue&)> onEvict = nullptr)
     {
         this->DeleteRangeWhere(start, end, [manual](duint start, duint end, const TValue & value)
         {
             if(manual ? !value.manual : value.manual) //ignore non-matching entries
                 return false;
             return value.addr >= start && value.addr < end;
-        });
+        }, onEvict);
     }
 
 protected:

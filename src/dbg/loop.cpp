@@ -3,6 +3,7 @@
 #include "threading.h"
 #include "module.h"
 #include "debugger.h"
+#include "database_cb_batcher.h"
 
 static std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> loops;
 
@@ -90,6 +91,11 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
 
     // Insert into list
     loops.emplace(DepthModuleRange(finalDepth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end))), loopInfo);
+
+    // TODO: the 'surround' path above re-inserts existing loops at depth+1. Those depth
+    // shifts are not reported to plugins (DbOperationType has no Update). Only the new
+    // loop's Add is surfaced here, consistent with the function callback behavior.
+    DbCbNotifyLoop(DbOperationType::Add, loopInfo.modhash, loopInfo.start, loopInfo.end, loopInfo.instructioncount, loopInfo.parent, loopInfo.depth, Manual);
     return true;
 }
 
@@ -163,7 +169,11 @@ static bool LoopDeleteAllRange(const DepthModuleRange & range)
 {
     auto erased = 0;
     for(auto found = loops.find(range); found != loops.end(); found = loops.find(range), erased++)
+    {
+        const LOOPSINFO & loopInfo = found->second;
+        DbCbNotifyLoop(DbOperationType::Remove, loopInfo.modhash, loopInfo.start);
         loops.erase(found);
+    }
     return erased > 0;
 }
 
@@ -325,4 +335,10 @@ void LoopClear()
     EXCLUSIVE_ACQUIRE(LockLoops);
     std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> empty;
     std::swap(loops, empty);
+
+    for(auto & itr : empty)
+    {
+        const LOOPSINFO & loopInfo = itr.second;
+        DbCbNotifyLoop(DbOperationType::Remove, loopInfo.modhash, loopInfo.start);
+    }
 }

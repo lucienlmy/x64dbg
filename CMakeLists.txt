@@ -304,6 +304,8 @@ set(dbg_SOURCES
 	"src/dbg/console.h"
 	"src/dbg/database.cpp"
 	"src/dbg/database.h"
+	"src/dbg/database_cb_batcher.cpp"
+	"src/dbg/database_cb_batcher.h"
 	"src/dbg/datainst_helper.cpp"
 	"src/dbg/datainst_helper.h"
 	"src/dbg/dbghelp_safe.cpp"

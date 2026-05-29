@@ -2,6 +2,7 @@
 #include "module.h"
 #include "memory.h"
 #include "threading.h"
+#include "database_cb_batcher.h"
 
 struct ArgumentSerializer : JSONWrapper<ARGUMENTSINFO>
 {
@@ -75,7 +76,12 @@ bool ArgumentAdd(duint Start, duint End, bool Manual, duint InstructionCount)
     argument.manual = Manual;
     argument.instructioncount = InstructionCount;
 
-    return arguments.Add(argument);
+    if(arguments.Add(argument))
+    {
+        DbCbNotifyArgument(DbOperationType::Add, argument.modhash, argument.start, argument.end, InstructionCount, Manual);
+        return true;
+    }
+    return false;
 }
 
 bool ArgumentGet(duint Address, duint* Start, duint* End, duint* InstrCount)
@@ -103,7 +109,18 @@ bool ArgumentOverlaps(duint Start, duint End)
 
 bool ArgumentDelete(duint Address)
 {
-    return arguments.Delete(Arguments::VaKey(Address, Address));
+    ARGUMENTSINFO info;
+    if(arguments.Get(Arguments::VaKey(Address, Address), info))
+    {
+        if(arguments.Delete(Arguments::VaKey(Address, Address)))
+        {
+            DbCbNotifyArgument(DbOperationType::Remove, info.modhash, info.start);
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
@@ -131,6 +148,9 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
             if(!DeleteManual && value.manual)
                 return false;
             return value.end >= Start && value.start <= End;
+        }, [](const ARGUMENTSINFO & argument)
+        {
+            DbCbNotifyArgument(DbOperationType::Remove, argument.modhash, argument.start);
         });
     }
 }
@@ -147,7 +167,15 @@ void ArgumentCacheLoad(JSON Root)
 
 void ArgumentClear()
 {
+    std::vector<ARGUMENTSINFO> allArguments;
+    ArgumentGetList(allArguments);
+
     arguments.Clear();
+
+    for(const auto& argument : allArguments)
+    {
+        DbCbNotifyArgument(DbOperationType::Remove, argument.modhash, argument.start);
+    }
 }
 
 void ArgumentGetList(std::vector<ARGUMENTSINFO> & list)

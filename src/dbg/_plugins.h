@@ -246,6 +246,15 @@ typedef struct
     void* reserved;
 } PLUG_CB_STOPTRACE;
 
+/* Forward declaration because definition is in database.h */
+typedef struct DbOperation DbOperation;
+
+typedef struct
+{
+    DbOperation * operations;
+    size_t count;
+} PLUG_CB_DBOPERATION;
+
 typedef enum
 {
     ValueTypeNumber,
@@ -307,6 +316,7 @@ typedef enum
     CB_STOPPINGDEBUG, //PLUG_CB_STOPDEBUG
     CB_STARTTRACE, //PLUG_CB_STARTTRACE
     CB_STOPTRACE, //PLUG_CB_STOPTRACE
+    CB_DBOPERATION, //PLUG_CB_DBOPERATION
     CB_LAST
 } CBTYPE;
 

@@ -1,4 +1,5 @@
 #include "comment.h"
+#include "database_cb_batcher.h"
 
 struct CommentSerializer : AddrInfoSerializer<COMMENTSINFO>
 {
@@ -42,7 +43,12 @@ bool CommentSet(duint Address, const char* Text, bool Manual)
     if(!comments.PrepareValue(comment, Address, Manual))
         return false;
     comment.text = Text;
-    return comments.Add(comment);
+    if(comments.Add(comment))
+    {
+        DbCbNotifyComment(DbOperationType::Add, comment.modhash, comment.addr, Text, Manual);
+        return true;
+    }
+    return false;
 }
 
 bool CommentGet(duint Address, char* Text)
@@ -59,12 +65,26 @@ bool CommentGet(duint Address, char* Text)
 
 bool CommentDelete(duint Address)
 {
-    return comments.Delete(Comments::VaKey(Address));
+    COMMENTSINFO info;
+    if(comments.Get(Comments::VaKey(Address),info))
+    {
+        if(comments.Delete(Comments::VaKey(Address)))
+        {
+            DbCbNotifyComment(DbOperationType::Remove, info.modhash, info.addr);
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void CommentDelRange(duint Start, duint End, bool Manual)
 {
-    comments.DeleteRange(Start, End, Manual);
+    comments.DeleteRange(Start, End, Manual, [](const COMMENTSINFO & comment)
+    {
+        DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
+    });
 }
 
 void CommentCacheSave(JSON Root)
@@ -85,7 +105,15 @@ bool CommentEnum(COMMENTSINFO* List, size_t* Size)
 
 void CommentClear()
 {
+    std::vector<COMMENTSINFO> allComments;
+    CommentGetList(allComments);
+
     comments.Clear();
+
+    for(const auto& comment : allComments)
+    {
+        DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
+    }
 }
 
 void CommentGetList(std::vector<COMMENTSINFO> & list)

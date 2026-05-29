@@ -18,6 +18,7 @@
 #include "thread.h"
 #include "disasm_fast.h"
 #include "plugin_loader.h"
+#include "database_cb_batcher.h"
 #include "_dbgfunctions.h"
 #include "module.h"
 #include "comment.h"
@@ -1329,6 +1330,7 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
 
     case DBG_DELETE_AUTO_COMMENT_RANGE:
     {
+        DbCallbackBatcher batcher;
         CommentDelRange((duint)param1, (duint)param2, false);
     }
     break;
@@ -1341,6 +1343,7 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
 
     case DBG_DELETE_AUTO_LABEL_RANGE:
     {
+        DbCallbackBatcher batcher;
         LabelDelRange((duint)param1, (duint)param2, false);
     }
     break;
@@ -1353,6 +1356,7 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
 
     case DBG_DELETE_AUTO_BOOKMARK_RANGE:
     {
+        DbCallbackBatcher batcher;
         BookmarkDelRange((duint)param1, (duint)param2, false);
     }
     break;
@@ -1365,6 +1369,7 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
 
     case DBG_DELETE_AUTO_FUNCTION_RANGE:
     {
+        DbCallbackBatcher batcher;
         FunctionDelRange((duint)param1, (duint)param2, false);
     }
     break;
@@ -1491,18 +1496,21 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
 
     case DBG_DELETE_COMMENT_RANGE:
     {
+        DbCallbackBatcher batcher;
         CommentDelRange((duint)param1, (duint)param2, true);
     }
     break;
 
     case DBG_DELETE_LABEL_RANGE:
     {
+        DbCallbackBatcher batcher;
         LabelDelRange((duint)param1, (duint)param2, true);
     }
     break;
 
     case DBG_DELETE_BOOKMARK_RANGE:
     {
+        DbCallbackBatcher batcher;
         BookmarkDelRange((duint)param1, (duint)param2, true);
     }
     break;
