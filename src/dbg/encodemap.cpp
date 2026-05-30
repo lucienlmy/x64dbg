@@ -340,6 +340,8 @@ void EncodeMapDelSegment(duint Start)
 
 void EncodeMapDelRange(duint Start, duint End)
 {
+    if(End < Start)
+        return;
     EncodeMapSetType(Start, End - Start + 1, enc_unknown);
 }
 
