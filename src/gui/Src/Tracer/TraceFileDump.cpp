@@ -405,7 +405,7 @@ void TraceFileDump::findAllMem(const unsigned char* data, const unsigned char* m
                             if(address - m.address + 1 >= size)
                             {
                                 // match success
-                                abortSearching = !matchFunction(m.address - trimmed, m.startIndex, m.endIndex);
+                                abortSearching = !matchFunction(m.address - trimmed, startIndex, endIndex);
                                 if(abortSearching)
                                     break;
                             }
@@ -426,7 +426,7 @@ void TraceFileDump::findAllMem(const unsigned char* data, const unsigned char* m
                         if(address - m.address + 1 >= size)
                         {
                             // match success
-                            abortSearching = !matchFunction(m.address - trimmed, m.startIndex, m.endIndex);
+                            abortSearching = !matchFunction(m.address - trimmed, m.startIndex, endIndex);
                             if(abortSearching)
                                 break;
                         }
