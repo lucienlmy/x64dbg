@@ -358,7 +358,15 @@ void LogView::addMsgToLogSlotRaw(QByteArray msg, bool encodeHTML)
         msgUtf16.append(tr("fwrite() failed (GetLastError()= %1 ). Log redirection stopped.\n").arg(GetLastError()));
 
     if(logBuffer.length() >= MAX_LOG_BUFFER_SIZE)
+    {
+        auto warning = tr("warning: pending GUI log buffer reached %1 bytes, dropping buffered messages.\n").arg(logBuffer.length());
+        auto warningHtml = warning.toHtmlEscaped();
+        warningHtml.replace(QChar(' '), QString("&nbsp;"));
+        warningHtml.replace(QChar('\n'), QString("<br/>\n"));
+
         logBuffer.clear();
+        logBuffer.append(warningHtml);
+    }
 
     logBuffer.append(msgUtf16);
     if(flushLog)
