@@ -153,6 +153,8 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
         Start -= moduleBase;
         End -= moduleBase;
 
+        DbCallbackBatcher batcher;
+
         functions.DeleteWhere([ = ](const FUNCTIONSINFO & value)
         {
             if(!DeleteManual && value.manual)
@@ -183,15 +185,11 @@ bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size)
 
 void FunctionClear()
 {
-    std::vector<FUNCTIONSINFO> allFunctions;
-    FunctionGetList(allFunctions);
-
-    functions.Clear();
-
-    for(const auto& function : allFunctions)
+    DbCallbackBatcher batcher;
+    functions.Clear([](const FUNCTIONSINFO & function)
     {
         DbCbNotifyFunction(DbOperationType::Remove, function.modhash, function.start);
-    }
+    });
 }
 
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list)

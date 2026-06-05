@@ -22,6 +22,7 @@ private:
     std::vector<DbOperation> mOperations;
     std::vector<std::string> mStrings;
     DbCallbackBatcher* mPrevious;
+    bool mOwner; // if a batcher is defined in a thread where there's already a batcher on the stack, this is set to false
 };
 
 void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const char* text = nullptr, bool manual = false);

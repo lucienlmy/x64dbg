@@ -167,6 +167,7 @@ bool LoopOverlaps(int Depth, duint Start, duint End, int* FinalDepth, duint* Fin
 
 static bool LoopDeleteAllRange(const DepthModuleRange & range)
 {
+    DbCallbackBatcher batcher;
     auto erased = 0;
     for(auto found = loops.find(range); found != loops.end(); found = loops.find(range), erased++)
     {
@@ -332,9 +333,13 @@ bool LoopEnum(LOOPSINFO* List, size_t* Size)
 
 void LoopClear()
 {
-    EXCLUSIVE_ACQUIRE(LockLoops);
+    DbCallbackBatcher batcher;
     std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> empty;
-    std::swap(loops, empty);
+
+    {
+        EXCLUSIVE_ACQUIRE(LockLoops);
+        std::swap(loops, empty);
+    }
 
     for(auto & itr : empty)
     {

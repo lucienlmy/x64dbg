@@ -4,21 +4,34 @@ thread_local DbCallbackBatcher* DbCallbackBatcher::tActiveBatcher = nullptr;
 
 DbCallbackBatcher::DbCallbackBatcher()
 {
-    mPrevious = tActiveBatcher;
-    tActiveBatcher = this;
+    mPrevious = DbCallbackBatcher::tActiveBatcher;
+    mOwner = DbCallbackBatcher::tActiveBatcher == nullptr;
 
-    mOperations.reserve(DB_MAX_CB_BATCH_SIZE);
-    mStrings.reserve(DB_MAX_CB_BATCH_SIZE);
+    if(mOwner)
+    {
+        DbCallbackBatcher::tActiveBatcher = this;
+
+        mOperations.reserve(DB_MAX_CB_BATCH_SIZE);
+        mStrings.reserve(DB_MAX_CB_BATCH_SIZE);
+    }
 }
 
 DbCallbackBatcher::~DbCallbackBatcher()
 {
-    this->Flush();
-    tActiveBatcher = mPrevious;
+    if(mOwner)
+    {
+        this->Flush();
+        DbCallbackBatcher::tActiveBatcher = mPrevious;
+    }
 }
 
 void DbCallbackBatcher::Add(DbOperation op, const char* text)
 {
+    if(!mOwner && DbCallbackBatcher::tActiveBatcher != nullptr)
+    {
+        return DbCallbackBatcher::tActiveBatcher->Add(op, text);
+    }
+
     if(text != nullptr)    // save c string in temporary string vector which will be cleared on flush
     {
         mStrings.emplace_back(text);
@@ -48,7 +61,7 @@ void DbCallbackBatcher::Flush()
 
 DbCallbackBatcher* DbCallbackBatcher::Get()
 {
-    return tActiveBatcher;
+    return DbCallbackBatcher::tActiveBatcher;
 }
 
 void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const char* text, bool manual)
@@ -67,7 +80,7 @@ void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -76,6 +89,7 @@ void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const
     }
 
     batcher->Add(op, text);
+    if(manual) batcher->Flush();
 }
 
 void DbCbNotifyComment(DbOperationType opType, duint modhash, duint address, const char* text, bool manual)
@@ -94,7 +108,7 @@ void DbCbNotifyComment(DbOperationType opType, duint modhash, duint address, con
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -103,6 +117,7 @@ void DbCbNotifyComment(DbOperationType opType, duint modhash, duint address, con
     }
 
     batcher->Add(op, text);
+    if(manual) batcher->Flush();
 }
 
 void DbCbNotifyBookmark(DbOperationType opType, duint modhash, duint address, bool manual)
@@ -120,7 +135,7 @@ void DbCbNotifyBookmark(DbOperationType opType, duint modhash, duint address, bo
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -129,6 +144,7 @@ void DbCbNotifyBookmark(DbOperationType opType, duint modhash, duint address, bo
     }
 
     batcher->Add(op);
+    if(manual) batcher->Flush();
 }
 
 void DbCbNotifyFunction(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, duint parent, bool manual)
@@ -149,7 +165,7 @@ void DbCbNotifyFunction(DbOperationType opType, duint modhash, duint start, duin
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -158,6 +174,7 @@ void DbCbNotifyFunction(DbOperationType opType, duint modhash, duint start, duin
     }
 
     batcher->Add(op);
+    if(manual) batcher->Flush();
 }
 
 void DbCbNotifyArgument(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, bool manual)
@@ -177,7 +194,7 @@ void DbCbNotifyArgument(DbOperationType opType, duint modhash, duint start, duin
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -186,6 +203,7 @@ void DbCbNotifyArgument(DbOperationType opType, duint modhash, duint start, duin
     }
 
     batcher->Add(op);
+    if(manual) batcher->Flush();
 }
 
 void DbCbNotifyLoop(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, duint parent, int depth, bool manual)
@@ -207,7 +225,7 @@ void DbCbNotifyLoop(DbOperationType opType, duint modhash, duint start, duint en
         op.manual = manual;
     }
 
-    if(batcher == nullptr || manual)
+    if(batcher == nullptr)
     {
         PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
         plugincbcall(CB_DBOPERATION, &callbackInfo);
@@ -216,4 +234,5 @@ void DbCbNotifyLoop(DbOperationType opType, duint modhash, duint start, duint en
     }
 
     batcher->Add(op);
+    if(manual) batcher->Flush();
 }

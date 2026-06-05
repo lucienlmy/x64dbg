@@ -165,11 +165,20 @@ public:
         return getWhere(predicate, nullptr);
     }
 
-    void Clear()
+    void Clear(std::function<void(const TValue&)> onEvict = nullptr)
     {
-        EXCLUSIVE_ACQUIRE(TLock);
         TMap empty;
-        std::swap(mMap, empty);
+
+        {
+            EXCLUSIVE_ACQUIRE(TLock);
+            std::swap(mMap, empty);
+        }
+
+        if(onEvict)
+        {
+            for(const auto& kv : empty)
+                onEvict(kv.second);
+        }
     }
 
     void CacheSave(JSON root) const
@@ -312,7 +321,7 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
         // 0x00000000 - 0xFFFFFFFF
         if(start == 0 && end == ~0)
         {
-            this->Clear();
+            this->Clear(onEvict);
         }
         else
         {

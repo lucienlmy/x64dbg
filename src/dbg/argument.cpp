@@ -143,6 +143,8 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
         Start -= moduleBase;
         End -= moduleBase;
 
+        DbCallbackBatcher batcher;
+
         arguments.DeleteWhere([ = ](const ARGUMENTSINFO & value)
         {
             if(!DeleteManual && value.manual)
@@ -167,15 +169,11 @@ void ArgumentCacheLoad(JSON Root)
 
 void ArgumentClear()
 {
-    std::vector<ARGUMENTSINFO> allArguments;
-    ArgumentGetList(allArguments);
-
-    arguments.Clear();
-
-    for(const auto& argument : allArguments)
+    DbCallbackBatcher batcher;
+    arguments.Clear([](const ARGUMENTSINFO & argument)
     {
         DbCbNotifyArgument(DbOperationType::Remove, argument.modhash, argument.start);
-    }
+    });
 }
 
 void ArgumentGetList(std::vector<ARGUMENTSINFO> & list)

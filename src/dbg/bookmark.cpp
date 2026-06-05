@@ -54,6 +54,7 @@ bool BookmarkDelete(duint Address)
 
 void BookmarkDelRange(duint Start, duint End, bool Manual)
 {
+    DbCallbackBatcher batcher;
     bookmarks.DeleteRange(Start, End, Manual, [](const BOOKMARKSINFO & bookmark)
     {
         DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
@@ -78,15 +79,11 @@ bool BookmarkEnum(BOOKMARKSINFO* List, size_t* Size)
 
 void BookmarkClear()
 {
-    std::vector<BOOKMARKSINFO> allBookmarks;
-    BookmarkGetList(allBookmarks);
-
-    bookmarks.Clear();
-
-    for(const auto& bookmark : allBookmarks)
+    DbCallbackBatcher batcher;
+    bookmarks.Clear([](const BOOKMARKSINFO & bookmark)
     {
         DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
-    }
+    });
 }
 
 void BookmarkGetList(std::vector<BOOKMARKSINFO> & list)

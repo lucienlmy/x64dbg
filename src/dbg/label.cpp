@@ -125,6 +125,7 @@ bool LabelDelete(duint Address)
 
 void LabelDelRange(duint Start, duint End, bool Manual)
 {
+    DbCallbackBatcher batcher;
     labels.DeleteRange(Start, End, Manual, [](const LABELSINFO & label)
     {
         DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
@@ -158,16 +159,12 @@ void LabelCacheLoad(JSON Root)
 
 void LabelClear()
 {
-    std::vector<LABELSINFO> allLabels;
-    LabelGetList(allLabels);
-
-    labels.Clear();
-    tempLabels.clear();
-
-    for(const auto& label : allLabels)
+    DbCallbackBatcher batcher;
+    labels.Clear([](const LABELSINFO & label)
     {
         DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
-    }
+    });
+    tempLabels.clear();
 }
 
 void LabelGetList(std::vector<LABELSINFO> & list)

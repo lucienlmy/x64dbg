@@ -81,6 +81,7 @@ bool CommentDelete(duint Address)
 
 void CommentDelRange(duint Start, duint End, bool Manual)
 {
+    DbCallbackBatcher batcher;
     comments.DeleteRange(Start, End, Manual, [](const COMMENTSINFO & comment)
     {
         DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
@@ -105,15 +106,11 @@ bool CommentEnum(COMMENTSINFO* List, size_t* Size)
 
 void CommentClear()
 {
-    std::vector<COMMENTSINFO> allComments;
-    CommentGetList(allComments);
-
-    comments.Clear();
-
-    for(const auto& comment : allComments)
+    DbCallbackBatcher batcher;
+    comments.Clear([](const COMMENTSINFO & comment)
     {
         DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
-    }
+    });
 }
 
 void CommentGetList(std::vector<COMMENTSINFO> & list)
