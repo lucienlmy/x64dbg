@@ -246,8 +246,42 @@ typedef struct
     void* reserved;
 } PLUG_CB_STOPTRACE;
 
-/* Forward declaration because definition is in database.h */
-typedef struct DbOperation DbOperation;
+enum class DbItemType
+{
+    Function,
+    Label,
+    Comment,
+    Bookmark,
+    Loop,
+    Argument
+};
+
+enum class DbOperationType
+{
+    Add,
+    Remove
+};
+
+typedef struct
+{
+    DbItemType itemType;
+    DbOperationType opType;
+    bool manual;
+    union
+    {
+        struct
+        {
+            const char* text; // comments and labels
+        };
+
+        struct
+        {
+            duint end, instructioncount, parent; // functions, arguments and loops
+            int depth; // loops only (nesting depth)
+        };
+    };
+    duint address, modhash;
+} DbOperation;
 
 typedef struct
 {

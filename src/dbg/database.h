@@ -2,6 +2,7 @@
 #define _DATABASE_H
 
 #include "_global.h"
+#include "_plugins.h"
 
 enum class DbLoadSaveType
 {
@@ -9,43 +10,6 @@ enum class DbLoadSaveType
     DebugData,
     All
 };
-
-enum class DbItemType
-{
-    Function,
-    Label,
-    Comment,
-    Bookmark,
-    Loop,
-    Argument
-};
-
-enum class DbOperationType
-{
-    Add,
-    Remove
-};
-
-typedef struct DbOperation
-{
-    DbItemType itemType;
-    DbOperationType opType;
-    bool manual;
-    union
-    {
-        struct
-        {
-            const char* text; // comments, labels
-        };
-
-        struct
-        {
-            duint end, instructioncount, parent; // functions, arguments, loops
-            int depth; // loops only (nesting depth); unused by functions/arguments
-        };
-    };
-    duint address, modhash;
-} DbOperation;
 
 void DbSave(DbLoadSaveType saveType, const char* dbfile = nullptr, bool disablecompression = false);
 void DbLoad(DbLoadSaveType loadType, const char* dbfile = nullptr);
