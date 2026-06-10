@@ -55,6 +55,16 @@ protected:
     {
         return ModuleRange(value.modhash, Range(value.start, value.end));
     }
+
+    void notifyAdd(const FUNCTIONSINFO & value) const override
+    {
+        DbCbNotifyFunction(DbOperationType::Add, value.modhash, value.start, value.end, value.instructioncount, value.parent, value.manual);
+    }
+
+    void notifyRemove(const FUNCTIONSINFO & value) const override
+    {
+        DbCbNotifyFunction(DbOperationType::Remove, value.modhash, value.start);
+    }
 };
 
 static Functions functions;
@@ -84,12 +94,7 @@ bool FunctionAdd(duint Start, duint End, bool Manual, duint InstructionCount, du
     function.parent = Parent ? Parent : Start;
     function.parent -= moduleBase;
 
-    if(functions.Add(function))
-    {
-        DbCbNotifyFunction(DbOperationType::Add, function.modhash, function.start, function.end, InstructionCount, function.parent, Manual);
-        return true;
-    }
-    return false;
+    return functions.Add(function);
 }
 
 bool FunctionGet(duint Address, duint* Start, duint* End, duint* InstrCount, duint* Parent)
@@ -119,18 +124,7 @@ bool FunctionOverlaps(duint Start, duint End)
 
 bool FunctionDelete(duint Address)
 {
-    FUNCTIONSINFO info;
-    if(functions.Get(Functions::VaKey(Address, Address),info))
-    {
-        if(functions.Delete(Functions::VaKey(Address, Address)))
-        {
-            DbCbNotifyFunction(DbOperationType::Remove, info.modhash, info.start);
-
-            return true;
-        }
-    }
-
-    return false;
+    return functions.Delete(Functions::VaKey(Address, Address));
 }
 
 void FunctionDelRange(duint Start, duint End, bool DeleteManual)
@@ -160,9 +154,6 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
             if(!DeleteManual && value.manual)
                 return false;
             return value.end >= Start && value.start <= End;
-        }, [](const FUNCTIONSINFO & function)
-        {
-            DbCbNotifyFunction(DbOperationType::Remove, function.modhash, function.start);
         });
     }
 }
@@ -186,10 +177,7 @@ bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size)
 void FunctionClear()
 {
     DbCallbackBatcher batcher;
-    functions.Clear([](const FUNCTIONSINFO & function)
-    {
-        DbCbNotifyFunction(DbOperationType::Remove, function.modhash, function.start);
-    });
+    functions.Clear();
 }
 
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list)

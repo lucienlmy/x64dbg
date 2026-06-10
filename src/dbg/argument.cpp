@@ -49,6 +49,16 @@ protected:
     {
         return ModuleRange(value.modhash, Range(value.start, value.end));
     }
+
+    void notifyAdd(const ARGUMENTSINFO & value) const override
+    {
+        DbCbNotifyArgument(DbOperationType::Add, value.modhash, value.start, value.end, value.instructioncount, value.manual);
+    }
+
+    void notifyRemove(const ARGUMENTSINFO & value) const override
+    {
+        DbCbNotifyArgument(DbOperationType::Remove, value.modhash, value.start);
+    }
 };
 
 static Arguments arguments;
@@ -76,12 +86,7 @@ bool ArgumentAdd(duint Start, duint End, bool Manual, duint InstructionCount)
     argument.manual = Manual;
     argument.instructioncount = InstructionCount;
 
-    if(arguments.Add(argument))
-    {
-        DbCbNotifyArgument(DbOperationType::Add, argument.modhash, argument.start, argument.end, InstructionCount, Manual);
-        return true;
-    }
-    return false;
+    return arguments.Add(argument);
 }
 
 bool ArgumentGet(duint Address, duint* Start, duint* End, duint* InstrCount)
@@ -109,18 +114,7 @@ bool ArgumentOverlaps(duint Start, duint End)
 
 bool ArgumentDelete(duint Address)
 {
-    ARGUMENTSINFO info;
-    if(arguments.Get(Arguments::VaKey(Address, Address), info))
-    {
-        if(arguments.Delete(Arguments::VaKey(Address, Address)))
-        {
-            DbCbNotifyArgument(DbOperationType::Remove, info.modhash, info.start);
-
-            return true;
-        }
-    }
-
-    return false;
+    return arguments.Delete(Arguments::VaKey(Address, Address));
 }
 
 void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
@@ -150,9 +144,6 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
             if(!DeleteManual && value.manual)
                 return false;
             return value.end >= Start && value.start <= End;
-        }, [](const ARGUMENTSINFO & argument)
-        {
-            DbCbNotifyArgument(DbOperationType::Remove, argument.modhash, argument.start);
         });
     }
 }
@@ -170,10 +161,7 @@ void ArgumentCacheLoad(JSON Root)
 void ArgumentClear()
 {
     DbCallbackBatcher batcher;
-    arguments.Clear([](const ARGUMENTSINFO & argument)
-    {
-        DbCbNotifyArgument(DbOperationType::Remove, argument.modhash, argument.start);
-    });
+    arguments.Clear();
 }
 
 void ArgumentGetList(std::vector<ARGUMENTSINFO> & list)

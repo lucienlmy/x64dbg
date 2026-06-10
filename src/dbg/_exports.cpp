@@ -18,7 +18,6 @@
 #include "thread.h"
 #include "disasm_fast.h"
 #include "plugin_loader.h"
-#include "database_cb_batcher.h"
 #include "_dbgfunctions.h"
 #include "module.h"
 #include "comment.h"

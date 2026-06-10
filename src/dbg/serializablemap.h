@@ -112,8 +112,14 @@ public:
 
     bool Add(const TValue & value)
     {
-        EXCLUSIVE_ACQUIRE(TLock);
-        return addNoLock(value);
+        bool added;
+        {
+            EXCLUSIVE_ACQUIRE(TLock);
+            added = addNoLock(value);
+        }
+        if(added)
+            notifyAdd(value);
+        return added;
     }
 
     bool Get(const TKey & key, TValue & value) const
@@ -134,20 +140,31 @@ public:
 
     bool Delete(const TKey & key)
     {
-        EXCLUSIVE_ACQUIRE(TLock);
-        return mMap.erase(key) > 0;
+        TValue value;
+        bool erased;
+        {
+            EXCLUSIVE_ACQUIRE(TLock);
+            auto found = mMap.find(key);
+            erased = found != mMap.end();
+            if(erased)
+            {
+                value = std::move(found->second);
+                mMap.erase(found);
+            }
+        }
+        if(erased)
+            notifyRemove(value);
+        return erased;
     }
 
-    void DeleteWhere(TValuePred predicate, std::function<void(const TValue&)> onEvict = nullptr)
+    void DeleteWhere(TValuePred predicate)
     {
         EXCLUSIVE_ACQUIRE(TLock);
         for(auto itr = mMap.begin(); itr != mMap.end();)
         {
             if(predicate(itr->second))
             {
-                if(onEvict)
-                    onEvict(itr->second);
-
+                notifyRemove(itr->second);
                 itr = mMap.erase(itr);
             }
             else
@@ -165,20 +182,15 @@ public:
         return getWhere(predicate, nullptr);
     }
 
-    void Clear(std::function<void(const TValue&)> onEvict = nullptr)
+    void Clear()
     {
         TMap empty;
-
         {
             EXCLUSIVE_ACQUIRE(TLock);
             std::swap(mMap, empty);
         }
-
-        if(onEvict)
-        {
-            for(const auto& kv : empty)
-                onEvict(kv.second);
-        }
+        for(const auto & kv : empty)
+            notifyRemove(kv.second);
     }
 
     void CacheSave(JSON root) const
@@ -266,6 +278,8 @@ public:
 protected:
     virtual const char* jsonKey() const = 0;
     virtual TKey makeKey(const TValue & value) const = 0;
+    virtual void notifyAdd(const TValue &) const {}
+    virtual void notifyRemove(const TValue &) const {}
 
 private:
     TMap mMap;
@@ -315,13 +329,13 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
         return ModHashFromAddr(addr);
     }
 
-    void DeleteRangeWhere(duint start, duint end, std::function<bool(duint, duint, const TValue &)> inRange, std::function<void(const TValue&)> onEvict = nullptr)
+    void DeleteRangeWhere(duint start, duint end, std::function<bool(duint, duint, const TValue &)> inRange)
     {
         // Are all comments going to be deleted?
         // 0x00000000 - 0xFFFFFFFF
         if(start == 0 && end == ~0)
         {
-            this->Clear(onEvict);
+            this->Clear();
         }
         else
         {
@@ -338,7 +352,7 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
             this->DeleteWhere([start, end, inRange](const TValue & value)
             {
                 return inRange(start, end, value);
-            }, onEvict);
+            });
         }
     }
 };
@@ -402,14 +416,14 @@ struct AddrInfoHashMap : SerializableModuleHashMap<TLock, TValue, TSerializer>
         return true;
     }
 
-    void DeleteRange(duint start, duint end, bool manual, std::function<void(const TValue&)> onEvict = nullptr)
+    void DeleteRange(duint start, duint end, bool manual)
     {
         this->DeleteRangeWhere(start, end, [manual](duint start, duint end, const TValue & value)
         {
             if(manual ? !value.manual : value.manual) //ignore non-matching entries
                 return false;
             return value.addr >= start && value.addr < end;
-        }, onEvict);
+        });
     }
 
 protected:

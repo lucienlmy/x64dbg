@@ -11,6 +11,17 @@ struct Bookmarks : AddrInfoHashMap<LockBookmarks, BOOKMARKSINFO, BookmarkSeriali
     {
         return "bookmarks";
     }
+
+protected:
+    void notifyAdd(const BOOKMARKSINFO & value) const override
+    {
+        DbCbNotifyBookmark(DbOperationType::Add, value.modhash, value.addr, value.manual);
+    }
+
+    void notifyRemove(const BOOKMARKSINFO & value) const override
+    {
+        DbCbNotifyBookmark(DbOperationType::Remove, value.modhash, value.addr);
+    }
 };
 
 static Bookmarks bookmarks;
@@ -23,12 +34,7 @@ bool BookmarkSet(duint Address, bool Manual)
     auto key = Bookmarks::VaKey(Address);
     if(bookmarks.Contains(key))
         return bookmarks.Delete(key);
-    if(bookmarks.Add(bookmark))
-    {
-        DbCbNotifyBookmark(DbOperationType::Add, bookmark.modhash, bookmark.addr, Manual);
-        return true;
-    }
-    return false;
+    return bookmarks.Add(bookmark);
 }
 
 bool BookmarkGet(duint Address)
@@ -38,27 +44,13 @@ bool BookmarkGet(duint Address)
 
 bool BookmarkDelete(duint Address)
 {
-    BOOKMARKSINFO info;
-    if(bookmarks.Get(Bookmarks::VaKey(Address),info))
-    {
-        if(bookmarks.Delete(Bookmarks::VaKey(Address)))
-        {
-            DbCbNotifyBookmark(DbOperationType::Remove, info.modhash, info.addr);
-
-            return true;
-        }
-    }
-
-    return false;
+    return bookmarks.Delete(Bookmarks::VaKey(Address));
 }
 
 void BookmarkDelRange(duint Start, duint End, bool Manual)
 {
     DbCallbackBatcher batcher;
-    bookmarks.DeleteRange(Start, End, Manual, [](const BOOKMARKSINFO & bookmark)
-    {
-        DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
-    });
+    bookmarks.DeleteRange(Start, End, Manual);
 }
 
 void BookmarkCacheSave(JSON Root)
@@ -80,10 +72,7 @@ bool BookmarkEnum(BOOKMARKSINFO* List, size_t* Size)
 void BookmarkClear()
 {
     DbCallbackBatcher batcher;
-    bookmarks.Clear([](const BOOKMARKSINFO & bookmark)
-    {
-        DbCbNotifyBookmark(DbOperationType::Remove, bookmark.modhash, bookmark.addr);
-    });
+    bookmarks.Clear();
 }
 
 void BookmarkGetList(std::vector<BOOKMARKSINFO> & list)

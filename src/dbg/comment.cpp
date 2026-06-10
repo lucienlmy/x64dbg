@@ -23,6 +23,17 @@ struct Comments : AddrInfoHashMap<LockComments, COMMENTSINFO, CommentSerializer>
     {
         return "comments";
     }
+
+protected:
+    void notifyAdd(const COMMENTSINFO & value) const override
+    {
+        DbCbNotifyComment(DbOperationType::Add, value.modhash, value.addr, value.text.c_str(), value.manual);
+    }
+
+    void notifyRemove(const COMMENTSINFO & value) const override
+    {
+        DbCbNotifyComment(DbOperationType::Remove, value.modhash, value.addr);
+    }
 };
 
 static Comments comments;
@@ -43,12 +54,7 @@ bool CommentSet(duint Address, const char* Text, bool Manual)
     if(!comments.PrepareValue(comment, Address, Manual))
         return false;
     comment.text = Text;
-    if(comments.Add(comment))
-    {
-        DbCbNotifyComment(DbOperationType::Add, comment.modhash, comment.addr, Text, Manual);
-        return true;
-    }
-    return false;
+    return comments.Add(comment);
 }
 
 bool CommentGet(duint Address, char* Text)
@@ -65,27 +71,13 @@ bool CommentGet(duint Address, char* Text)
 
 bool CommentDelete(duint Address)
 {
-    COMMENTSINFO info;
-    if(comments.Get(Comments::VaKey(Address),info))
-    {
-        if(comments.Delete(Comments::VaKey(Address)))
-        {
-            DbCbNotifyComment(DbOperationType::Remove, info.modhash, info.addr);
-
-            return true;
-        }
-    }
-
-    return false;
+    return comments.Delete(Comments::VaKey(Address));
 }
 
 void CommentDelRange(duint Start, duint End, bool Manual)
 {
     DbCallbackBatcher batcher;
-    comments.DeleteRange(Start, End, Manual, [](const COMMENTSINFO & comment)
-    {
-        DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
-    });
+    comments.DeleteRange(Start, End, Manual);
 }
 
 void CommentCacheSave(JSON Root)
@@ -107,10 +99,7 @@ bool CommentEnum(COMMENTSINFO* List, size_t* Size)
 void CommentClear()
 {
     DbCallbackBatcher batcher;
-    comments.Clear([](const COMMENTSINFO & comment)
-    {
-        DbCbNotifyComment(DbOperationType::Remove, comment.modhash, comment.addr);
-    });
+    comments.Clear();
 }
 
 void CommentGetList(std::vector<COMMENTSINFO> & list)

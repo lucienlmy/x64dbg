@@ -23,6 +23,17 @@ struct Labels : AddrInfoHashMap<LockLabels, LABELSINFO, LabelSerializer>
     {
         return "labels";
     }
+
+protected:
+    void notifyAdd(const LABELSINFO & value) const override
+    {
+        DbCbNotifyLabel(DbOperationType::Add, value.modhash, value.addr, value.text.c_str(), value.manual);
+    }
+
+    void notifyRemove(const LABELSINFO & value) const override
+    {
+        DbCbNotifyLabel(DbOperationType::Remove, value.modhash, value.addr);
+    }
 };
 
 static Labels labels;
@@ -49,12 +60,7 @@ bool LabelSet(duint Address, const char* Text, bool Manual, bool Temp)
     if(!labels.PrepareValue(label, Address, Manual))
         return false;
     label.text = Text;
-    if(labels.Add(label))
-    {
-        DbCbNotifyLabel(DbOperationType::Add, label.modhash, label.addr, Text, Manual);
-        return true;
-    }
-    return false;
+    return labels.Add(label);
 }
 
 bool LabelFromString(const char* Text, duint* Address)
@@ -107,29 +113,13 @@ bool LabelIsTemporary(duint Address)
 
 bool LabelDelete(duint Address)
 {
-    LABELSINFO info;
-    if(labels.Get(Labels::VaKey(Address),info))
-    {
-        if(labels.Delete(Labels::VaKey(Address)))
-        {
-            DbCbNotifyLabel(DbOperationType::Remove, info.modhash, info.addr);
-
-            return true;
-        }
-
-        return false;
-    }
-
-    return tempLabels.erase(Address) > 0;
+    return labels.Delete(Labels::VaKey(Address)) || tempLabels.erase(Address) > 0;
 }
 
 void LabelDelRange(duint Start, duint End, bool Manual)
 {
     DbCallbackBatcher batcher;
-    labels.DeleteRange(Start, End, Manual, [](const LABELSINFO & label)
-    {
-        DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
-    });
+    labels.DeleteRange(Start, End, Manual);
     if(Start == 0 && End == ~0)
     {
         tempLabels.clear();
@@ -160,10 +150,7 @@ void LabelCacheLoad(JSON Root)
 void LabelClear()
 {
     DbCallbackBatcher batcher;
-    labels.Clear([](const LABELSINFO & label)
-    {
-        DbCbNotifyLabel(DbOperationType::Remove, label.modhash, label.addr);
-    });
+    labels.Clear();
     tempLabels.clear();
 }
 

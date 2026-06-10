@@ -1,5 +1,4 @@
 #include "cmd-user-database.h"
-#include "database_cb_batcher.h"
 #include "database.h"
 #include "console.h"
 #include "comment.h"
