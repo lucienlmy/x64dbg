@@ -7,6 +7,18 @@
 
 static std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> loops;
 
+static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
+{
+    op.itemType = DbItemType::Loop;
+    op.modhash = info.modhash;
+    op.address = info.start;
+    op.end = info.end;
+    op.depth = info.depth;
+    op.instructioncount = info.instructioncount;
+    op.parent = info.parent;
+    op.manual = info.manual;
+}
+
 bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
 {
     ASSERT_DEBUGGING("Export call");
@@ -95,7 +107,12 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
     // TODO: the 'surround' path above re-inserts existing loops at depth+1. Those depth
     // shifts are not reported to plugins (DbOperationType has no Update). Only the new
     // loop's Add is surfaced here, consistent with the function callback behavior.
-    DbCbNotifyLoop(DbOperationType::Add, loopInfo.modhash, loopInfo.start, loopInfo.end, loopInfo.instructioncount, loopInfo.parent, loopInfo.depth, Manual);
+    DbOperation op {};
+    op.opType = DbOperationType::Add;
+    populateDbOperation(op, loopInfo);
+
+    DbCbNotify(op);
+
     return true;
 }
 
@@ -171,8 +188,12 @@ static bool LoopDeleteAllRange(const DepthModuleRange & range)
     auto erased = 0;
     for(auto found = loops.find(range); found != loops.end(); found = loops.find(range), erased++)
     {
-        const LOOPSINFO & loopInfo = found->second;
-        DbCbNotifyLoop(DbOperationType::Remove, loopInfo.modhash, loopInfo.start);
+        DbOperation op;
+        op.opType = DbOperationType::Remove;
+        populateDbOperation(op, found->second);
+
+        DbCbNotify(op);
+
         loops.erase(found);
     }
     return erased > 0;
@@ -256,6 +277,8 @@ void LoopCacheSave(JSON Root)
 
 void LoopCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher;
+
     EXCLUSIVE_ACQUIRE(LockLoops);
 
     // Inline lambda to parse each JSON entry
@@ -286,6 +309,12 @@ void LoopCacheLoad(JSON Root)
 
             // Insert into global list
             loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
+
+            DbOperation op {};
+            op.opType = DbOperationType::Add;
+            populateDbOperation(op, loopInfo);
+
+            DbCbNotify(op);
         }
     };
 
@@ -343,7 +372,10 @@ void LoopClear()
 
     for(auto & itr : empty)
     {
-        const LOOPSINFO & loopInfo = itr.second;
-        DbCbNotifyLoop(DbOperationType::Remove, loopInfo.modhash, loopInfo.start);
+        DbOperation op {};
+        op.opType = DbOperationType::Remove;
+        populateDbOperation(op, itr.second);
+
+        DbCbNotify(op);
     }
 }

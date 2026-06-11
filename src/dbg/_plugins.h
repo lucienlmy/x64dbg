@@ -266,21 +266,24 @@ typedef struct
 {
     DbItemType itemType;
     DbOperationType opType;
-    bool manual;
     union
     {
-        struct
+        struct // comments, labels
         {
-            const char* text; // comments and labels
+            const char* text;
         };
 
-        struct
+        struct // functions, arguments, loops
         {
-            duint end, instructioncount, parent; // functions, arguments and loops
-            int depth; // loops only (nesting depth)
+            duint end;
+            duint instructioncount;
+            duint parent;
+            int depth;
         };
     };
-    duint address, modhash;
+    duint address;
+    duint modhash;
+    bool manual;
 } DbOperation;
 
 typedef struct

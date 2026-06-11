@@ -13,14 +13,14 @@ struct Bookmarks : AddrInfoHashMap<LockBookmarks, BOOKMARKSINFO, BookmarkSeriali
     }
 
 protected:
-    void notifyAdd(const BOOKMARKSINFO & value) const override
+    bool populateDbOperation(DbOperation & op, const BOOKMARKSINFO & value)
     {
-        DbCbNotifyBookmark(DbOperationType::Add, value.modhash, value.addr, value.manual);
-    }
+        op.itemType = DbItemType::Bookmark;
+        op.modhash = value.modhash;
+        op.address = value.addr;
+        op.manual = value.manual;
 
-    void notifyRemove(const BOOKMARKSINFO & value) const override
-    {
-        DbCbNotifyBookmark(DbOperationType::Remove, value.modhash, value.addr);
+        return true;
     }
 };
 
@@ -60,6 +60,7 @@ void BookmarkCacheSave(JSON Root)
 
 void BookmarkCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher;
     bookmarks.CacheLoad(Root);
     bookmarks.CacheLoad(Root, "auto"); //legacy support
 }

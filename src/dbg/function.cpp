@@ -56,14 +56,17 @@ protected:
         return ModuleRange(value.modhash, Range(value.start, value.end));
     }
 
-    void notifyAdd(const FUNCTIONSINFO & value) const override
+    bool populateDbOperation(DbOperation & op, const FUNCTIONSINFO & value)
     {
-        DbCbNotifyFunction(DbOperationType::Add, value.modhash, value.start, value.end, value.instructioncount, value.parent, value.manual);
-    }
+        op.itemType = DbItemType::Function;
+        op.modhash = value.modhash;
+        op.address = value.start;
+        op.end = value.end;
+        op.instructioncount = value.instructioncount;
+        op.parent = value.parent;
+        op.manual = value.manual;
 
-    void notifyRemove(const FUNCTIONSINFO & value) const override
-    {
-        DbCbNotifyFunction(DbOperationType::Remove, value.modhash, value.start);
+        return true;
     }
 };
 
@@ -165,6 +168,7 @@ void FunctionCacheSave(JSON Root)
 
 void FunctionCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher;
     functions.CacheLoad(Root);
     functions.CacheLoad(Root, "auto"); //legacy support
 }

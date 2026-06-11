@@ -25,14 +25,15 @@ struct Comments : AddrInfoHashMap<LockComments, COMMENTSINFO, CommentSerializer>
     }
 
 protected:
-    void notifyAdd(const COMMENTSINFO & value) const override
+    bool populateDbOperation(DbOperation & op, const COMMENTSINFO & value)
     {
-        DbCbNotifyComment(DbOperationType::Add, value.modhash, value.addr, value.text.c_str(), value.manual);
-    }
+        op.itemType = DbItemType::Comment;
+        op.modhash = value.modhash;
+        op.address = value.addr;
+        op.text = value.text.c_str();
+        op.manual = value.manual;
 
-    void notifyRemove(const COMMENTSINFO & value) const override
-    {
-        DbCbNotifyComment(DbOperationType::Remove, value.modhash, value.addr);
+        return true;
     }
 };
 
@@ -87,6 +88,7 @@ void CommentCacheSave(JSON Root)
 
 void CommentCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher;
     comments.CacheLoad(Root);
     comments.CacheLoad(Root, "auto"); //legacy support
 }

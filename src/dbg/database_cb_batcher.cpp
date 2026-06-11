@@ -4,8 +4,8 @@ thread_local DbCallbackBatcher* DbCallbackBatcher::tActiveBatcher = nullptr;
 
 DbCallbackBatcher::DbCallbackBatcher()
 {
-    mPrevious = DbCallbackBatcher::tActiveBatcher;
-    mOwner = DbCallbackBatcher::tActiveBatcher == nullptr;
+    mPrevious = DbCallbackBatcher::Get();
+    mOwner = (mPrevious == nullptr);
 
     if(mOwner)
     {
@@ -25,16 +25,18 @@ DbCallbackBatcher::~DbCallbackBatcher()
     }
 }
 
-void DbCallbackBatcher::Add(DbOperation op, const char* text)
+void DbCallbackBatcher::Add(DbOperation & op)
 {
-    if(!mOwner && DbCallbackBatcher::tActiveBatcher != nullptr)
+    auto batcher = DbCallbackBatcher::Get();
+
+    if(!mOwner && batcher != nullptr)
     {
-        return DbCallbackBatcher::tActiveBatcher->Add(op, text);
+        return batcher->Add(op);
     }
 
-    if(text != nullptr)    // save c string in temporary string vector which will be cleared on flush
+    if(op.text != nullptr && (op.itemType == DbItemType::Comment || op.itemType == DbItemType::Label))  // save c string in temporary string vector which will be cleared on flush
     {
-        mStrings.emplace_back(text);
+        mStrings.emplace_back(op.text);
         op.text = mStrings.back().c_str();
     }
 
@@ -64,175 +66,20 @@ DbCallbackBatcher* DbCallbackBatcher::Get()
     return DbCallbackBatcher::tActiveBatcher;
 }
 
-void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const char* text, bool manual)
+void DbCbNotify(DbOperation & op)
 {
     auto batcher = DbCallbackBatcher::Get();
 
-    DbOperation op = {};
-    op.itemType = DbItemType::Label;
-    op.opType = opType;
-    op.address = address;
-    op.text = text;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.manual = manual;
-    }
-
     if(batcher == nullptr)
     {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
+        PLUG_CB_DBOPERATION info;
+        info.operations = & op;
+        info.count = 1;
 
-        return;
-    }
-
-    batcher->Add(op, text);
-    if(manual) batcher->Flush();
-}
-
-void DbCbNotifyComment(DbOperationType opType, duint modhash, duint address, const char* text, bool manual)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    DbOperation op = {};
-    op.itemType = DbItemType::Comment;
-    op.opType = opType;
-    op.address = address;
-    op.text = text;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.manual = manual;
-    }
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
-
-        return;
-    }
-
-    batcher->Add(op, text);
-    if(manual) batcher->Flush();
-}
-
-void DbCbNotifyBookmark(DbOperationType opType, duint modhash, duint address, bool manual)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    DbOperation op = {};
-    op.itemType = DbItemType::Bookmark;
-    op.opType = opType;
-    op.address = address;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.manual = manual;
-    }
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
+        plugincbcall(CB_DBOPERATION, &info);
 
         return;
     }
 
     batcher->Add(op);
-    if(manual) batcher->Flush();
-}
-
-void DbCbNotifyFunction(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, duint parent, bool manual)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    DbOperation op = {};
-    op.itemType = DbItemType::Function;
-    op.opType = opType;
-    op.address = start;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.end = end;
-        op.instructioncount = instructioncount;
-        op.parent = parent;
-        op.manual = manual;
-    }
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
-
-        return;
-    }
-
-    batcher->Add(op);
-    if(manual) batcher->Flush();
-}
-
-void DbCbNotifyArgument(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, bool manual)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    DbOperation op = {};
-    op.itemType = DbItemType::Argument;
-    op.opType = opType;
-    op.address = start;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.end = end;
-        op.instructioncount = instructioncount;
-        op.manual = manual;
-    }
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
-
-        return;
-    }
-
-    batcher->Add(op);
-    if(manual) batcher->Flush();
-}
-
-void DbCbNotifyLoop(DbOperationType opType, duint modhash, duint start, duint end, duint instructioncount, duint parent, int depth, bool manual)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    DbOperation op = {};
-    op.itemType = DbItemType::Loop;
-    op.opType = opType;
-    op.address = start;
-    op.modhash = modhash;
-
-    if(opType == DbOperationType::Add)    // only add callbacks have data assigned
-    {
-        op.end = end;
-        op.instructioncount = instructioncount;
-        op.parent = parent;
-        op.depth = depth;
-        op.manual = manual;
-    }
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION callbackInfo = { & op, 1 };
-        plugincbcall(CB_DBOPERATION, &callbackInfo);
-
-        return;
-    }
-
-    batcher->Add(op);
-    if(manual) batcher->Flush();
 }

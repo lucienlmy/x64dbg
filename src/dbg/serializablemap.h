@@ -6,6 +6,7 @@
 #include "module.h"
 #include "memory.h"
 #include "jansson/jansson_x64dbg.h"
+#include "database_cb_batcher.h"
 
 template<class TValue>
 class JSONWrapper
@@ -118,7 +119,15 @@ public:
             added = addNoLock(value);
         }
         if(added)
-            notifyAdd(value);
+        {
+            DbOperation op {};
+            op.opType = DbOperationType::Add;
+
+            if(populateDbOperation(op, value))
+            {
+                DbCbNotify(op);
+            }
+        }
         return added;
     }
 
@@ -153,7 +162,15 @@ public:
             }
         }
         if(erased)
-            notifyRemove(value);
+        {
+            DbOperation op {};
+            op.opType = DbOperationType::Remove;
+
+            if(populateDbOperation(op, value))
+            {
+                DbCbNotify(op);
+            }
+        }
         return erased;
     }
 
@@ -164,7 +181,14 @@ public:
         {
             if(predicate(itr->second))
             {
-                notifyRemove(itr->second);
+                DbOperation op {};
+                op.opType = DbOperationType::Remove;
+
+                if(populateDbOperation(op, itr->second))
+                {
+                    DbCbNotify(op);
+                }
+
                 itr = mMap.erase(itr);
             }
             else
@@ -190,7 +214,15 @@ public:
             std::swap(mMap, empty);
         }
         for(const auto & kv : empty)
-            notifyRemove(kv.second);
+        {
+            DbOperation op {};
+            op.opType = DbOperationType::Remove;
+
+            if(populateDbOperation(op, kv.second))
+            {
+                DbCbNotify(op);
+            }
+        }
     }
 
     void CacheSave(JSON root) const
@@ -225,7 +257,18 @@ public:
             deserializer.SetJson(jsonValue);
             TValue value;
             if(deserializer.Load(value))
-                addNoLock(value);
+            {
+                if(addNoLock(value))
+                {
+                    DbOperation op {};
+                    op.opType = DbOperationType::Add;
+
+                    if(populateDbOperation(op, value))
+                    {
+                        DbCbNotify(op);
+                    }
+                }
+            }
         }
     }
 
@@ -278,8 +321,10 @@ public:
 protected:
     virtual const char* jsonKey() const = 0;
     virtual TKey makeKey(const TValue & value) const = 0;
-    virtual void notifyAdd(const TValue &) const {}
-    virtual void notifyRemove(const TValue &) const {}
+    virtual bool populateDbOperation(DbOperation & op, const TValue & value)     // default value is false for implementations without database callbacks
+    {
+        return false;
+    }
 
 private:
     TMap mMap;

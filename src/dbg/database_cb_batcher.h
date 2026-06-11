@@ -12,7 +12,7 @@ public:
     DbCallbackBatcher();
     ~DbCallbackBatcher();
 
-    void Add(DbOperation op, const char* text = nullptr);
+    void Add(DbOperation & op);
     void Flush();
 
     static DbCallbackBatcher* Get();
@@ -25,11 +25,6 @@ private:
     bool mOwner; // if a batcher is defined in a thread where there's already a batcher on the stack, this is set to false
 };
 
-void DbCbNotifyLabel(DbOperationType opType, duint modhash, duint address, const char* text = nullptr, bool manual = false);
-void DbCbNotifyComment(DbOperationType opType, duint modhash, duint address, const char* text = nullptr, bool manual = false);
-void DbCbNotifyBookmark(DbOperationType opType, duint modhash, duint address, bool manual = false);
-void DbCbNotifyFunction(DbOperationType opType, duint modhash, duint start, duint end = 0, duint instructioncount = 0, duint parent = 0, bool manual = false);
-void DbCbNotifyArgument(DbOperationType opType, duint modhash, duint start, duint end = 0, duint instructioncount = 0, bool manual = false);
-void DbCbNotifyLoop(DbOperationType opType, duint modhash, duint start, duint end = 0, duint instructioncount = 0, duint parent = 0, int depth = 0, bool manual = false);
+void DbCbNotify(DbOperation & op);
 
 #endif // _DATABASE_BATCHER_H

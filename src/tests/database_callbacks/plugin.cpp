@@ -163,6 +163,18 @@ namespace
             return false;
         return true;
     }
+
+    bool cbAssertOperationsSize(int argc, char** argv)
+    {
+        if(argc < 2)
+            return false;
+
+        const duint size = evalExpr(argv[1]);
+        if(!_plugin_testassert(size == operations.size(), "total operations size doesn't match (%llu != %llu)", size, operations.size()))
+            return false;
+
+        return true;
+    }
 }
 
 extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
@@ -175,6 +187,7 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     _plugin_registercallback(gPluginHandle, CB_INITDEBUG, cbPlugin);
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
+    _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
     return true;
 }
 

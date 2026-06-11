@@ -50,14 +50,16 @@ protected:
         return ModuleRange(value.modhash, Range(value.start, value.end));
     }
 
-    void notifyAdd(const ARGUMENTSINFO & value) const override
+    bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value)
     {
-        DbCbNotifyArgument(DbOperationType::Add, value.modhash, value.start, value.end, value.instructioncount, value.manual);
-    }
+        op.itemType = DbItemType::Argument;
+        op.modhash = value.modhash;
+        op.address = value.start;
+        op.end = value.end;
+        op.instructioncount = value.instructioncount;
+        op.manual = value.manual;
 
-    void notifyRemove(const ARGUMENTSINFO & value) const override
-    {
-        DbCbNotifyArgument(DbOperationType::Remove, value.modhash, value.start);
+        return true;
     }
 };
 
@@ -155,6 +157,7 @@ void ArgumentCacheSave(JSON Root)
 
 void ArgumentCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher;
     arguments.CacheLoad(Root);
 }
 
