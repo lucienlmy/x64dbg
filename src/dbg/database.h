@@ -2,7 +2,6 @@
 #define _DATABASE_H
 
 #include "_global.h"
-#include "_plugins.h"
 
 enum class DbLoadSaveType
 {
