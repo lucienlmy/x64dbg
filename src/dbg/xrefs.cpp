@@ -53,6 +53,12 @@ struct Xrefs : AddrInfoHashMap<LockCrossReferences, XREFSINFO, XrefSerializer>
     {
         return "xrefs";
     }
+
+protected:
+    bool populateDbOperation(DbOperation & op, const XREFSINFO & value) const override // Xrefs don't have database notifications
+    {
+        return false;
+    }
 };
 
 static Xrefs xrefs;

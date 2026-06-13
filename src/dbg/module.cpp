@@ -869,6 +869,12 @@ struct ModulePartyInfo : AddrInfoHashMap<LockModuleHashes, MODULEPARTYINFO, Modu
     {
         return "modules";
     }
+
+protected:
+    bool populateDbOperation(DbOperation & op, const MODULEPARTYINFO & value) const override // Modules don't have database notifications
+    {
+        return false;
+    }
 };
 
 static ModulePartyInfo modulePartyInfo;

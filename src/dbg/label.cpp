@@ -25,7 +25,7 @@ struct Labels : AddrInfoHashMap<LockLabels, LABELSINFO, LabelSerializer>
     }
 
 protected:
-    bool populateDbOperation(DbOperation & op, const LABELSINFO & value)
+    bool populateDbOperation(DbOperation & op, const LABELSINFO & value) const override
     {
         op.itemType = DbItemType::Label;
         op.modhash = value.modhash;

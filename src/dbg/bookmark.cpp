@@ -13,7 +13,7 @@ struct Bookmarks : AddrInfoHashMap<LockBookmarks, BOOKMARKSINFO, BookmarkSeriali
     }
 
 protected:
-    bool populateDbOperation(DbOperation & op, const BOOKMARKSINFO & value)
+    bool populateDbOperation(DbOperation & op, const BOOKMARKSINFO & value) const override
     {
         op.itemType = DbItemType::Bookmark;
         op.modhash = value.modhash;

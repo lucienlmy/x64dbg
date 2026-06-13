@@ -50,7 +50,7 @@ protected:
         return ModuleRange(value.modhash, Range(value.start, value.end));
     }
 
-    bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value)
+    bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value) const override
     {
         op.itemType = DbItemType::Argument;
         op.modhash = value.modhash;

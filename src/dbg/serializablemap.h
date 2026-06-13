@@ -321,10 +321,7 @@ public:
 protected:
     virtual const char* jsonKey() const = 0;
     virtual TKey makeKey(const TValue & value) const = 0;
-    virtual bool populateDbOperation(DbOperation & op, const TValue & value)     // default value is false for implementations without database callbacks
-    {
-        return false;
-    }
+    virtual bool populateDbOperation(DbOperation & op, const TValue & value) const = 0; // Should return whether a database notification is necessary or not
 
 private:
     TMap mMap;

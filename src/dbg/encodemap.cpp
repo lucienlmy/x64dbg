@@ -78,6 +78,12 @@ struct EncodeMap : AddrInfoHashMap<LockEncodeMaps, ENCODEMAP, EncodeMapSerialize
     {
         return "encodemaps";
     }
+
+protected:
+    bool populateDbOperation(DbOperation & op, const ENCODEMAP & value) const override // Encode maps don't have database notifications
+    {
+        return false;
+    }
 };
 
 static EncodeMap encmaps;

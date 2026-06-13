@@ -25,7 +25,7 @@ struct Comments : AddrInfoHashMap<LockComments, COMMENTSINFO, CommentSerializer>
     }
 
 protected:
-    bool populateDbOperation(DbOperation & op, const COMMENTSINFO & value)
+    bool populateDbOperation(DbOperation & op, const COMMENTSINFO & value) const override
     {
         op.itemType = DbItemType::Comment;
         op.modhash = value.modhash;
