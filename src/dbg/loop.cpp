@@ -111,7 +111,7 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
     op.opType = DbOperationType::Add;
     populateDbOperation(op, loopInfo);
 
-    DbCbNotify(op);
+    DbCallbackBatcher::Add(op);
 
     return true;
 }
@@ -192,7 +192,7 @@ static bool LoopDeleteAllRange(const DepthModuleRange & range)
         op.opType = DbOperationType::Remove;
         populateDbOperation(op, found->second);
 
-        DbCbNotify(op);
+        DbCallbackBatcher::Add(op);
 
         loops.erase(found);
     }
@@ -314,7 +314,7 @@ void LoopCacheLoad(JSON Root)
             op.opType = DbOperationType::Add;
             populateDbOperation(op, loopInfo);
 
-            DbCbNotify(op);
+            DbCallbackBatcher::Add(op);
         }
     };
 
@@ -376,6 +376,6 @@ void LoopClear()
         op.opType = DbOperationType::Remove;
         populateDbOperation(op, itr.second);
 
-        DbCbNotify(op);
+        DbCallbackBatcher::Add(op);
     }
 }

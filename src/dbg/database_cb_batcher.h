@@ -12,7 +12,7 @@ public:
     DbCallbackBatcher();
     ~DbCallbackBatcher();
 
-    void Add(DbOperation & op);
+    static void Add(DbOperation & op);
     void Flush();
 
     static DbCallbackBatcher* Get();
@@ -24,7 +24,5 @@ private:
     DbCallbackBatcher* mPrevious;
     bool mOwner; // if a batcher is defined in a thread where there's already a batcher on the stack, this is set to false
 };
-
-void DbCbNotify(DbOperation & op);
 
 #endif // _DATABASE_BATCHER_H

@@ -125,7 +125,7 @@ public:
 
             if(populateDbOperation(op, value))
             {
-                DbCbNotify(op);
+                DbCallbackBatcher::Add(op);
             }
         }
         return added;
@@ -168,7 +168,7 @@ public:
 
             if(populateDbOperation(op, value))
             {
-                DbCbNotify(op);
+                DbCallbackBatcher::Add(op);
             }
         }
         return erased;
@@ -176,23 +176,30 @@ public:
 
     void DeleteWhere(TValuePred predicate)
     {
-        EXCLUSIVE_ACQUIRE(TLock);
-        for(auto itr = mMap.begin(); itr != mMap.end();)
+        std::vector<TValue> erased;
         {
-            if(predicate(itr->second))
+            EXCLUSIVE_ACQUIRE(TLock);
+            for(auto itr = mMap.begin(); itr != mMap.end();)
             {
-                DbOperation op {};
-                op.opType = DbOperationType::Remove;
-
-                if(populateDbOperation(op, itr->second))
+                if(predicate(itr->second))
                 {
-                    DbCbNotify(op);
-                }
+                    erased.emplace_back(std::move(itr->second));
 
-                itr = mMap.erase(itr);
+                    itr = mMap.erase(itr);
+                }
+                else
+                    ++itr;
             }
-            else
-                ++itr;
+        }
+        for(const TValue & value : erased)
+        {
+            DbOperation op {};
+            op.opType = DbOperationType::Remove;
+
+            if(populateDbOperation(op, value))
+            {
+                DbCallbackBatcher::Add(op);
+            }
         }
     }
 
@@ -220,7 +227,7 @@ public:
 
             if(populateDbOperation(op, kv.second))
             {
-                DbCbNotify(op);
+                DbCallbackBatcher::Add(op);
             }
         }
     }
@@ -265,7 +272,7 @@ public:
 
                     if(populateDbOperation(op, value))
                     {
-                        DbCbNotify(op);
+                        DbCallbackBatcher::Add(op);
                     }
                 }
             }

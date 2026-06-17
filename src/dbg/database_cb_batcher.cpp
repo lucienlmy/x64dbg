@@ -29,21 +29,29 @@ void DbCallbackBatcher::Add(DbOperation & op)
 {
     auto batcher = DbCallbackBatcher::Get();
 
-    if(!mOwner && batcher != nullptr)
+    if(batcher != nullptr)
     {
-        return batcher->Add(op);
-    }
+        if(op.text != nullptr && (op.itemType == DbItemType::Comment || op.itemType == DbItemType::Label)) // save c string in temporary string vector which will be cleared on flush
+        {
+            batcher->mStrings.emplace_back(op.text);
+            op.text = batcher->mStrings.back().c_str();
+        }
 
-    if(op.text != nullptr && (op.itemType == DbItemType::Comment || op.itemType == DbItemType::Label))  // save c string in temporary string vector which will be cleared on flush
+        batcher->mOperations.emplace_back(op);
+
+        if(batcher->mOperations.size() >= DB_MAX_CB_BATCH_SIZE)
+        {
+            batcher->Flush();
+        }
+    }
+    else
     {
-        mStrings.emplace_back(op.text);
-        op.text = mStrings.back().c_str();
+        PLUG_CB_DBOPERATION info;
+        info.operations = &op;
+        info.count = 1;
+
+        plugincbcall(CB_DBOPERATION, &info);
     }
-
-    mOperations.emplace_back(op);
-
-    if(mOperations.size() >= DB_MAX_CB_BATCH_SIZE)
-        this->Flush();
 }
 
 void DbCallbackBatcher::Flush()
@@ -64,22 +72,4 @@ void DbCallbackBatcher::Flush()
 DbCallbackBatcher* DbCallbackBatcher::Get()
 {
     return DbCallbackBatcher::tActiveBatcher;
-}
-
-void DbCbNotify(DbOperation & op)
-{
-    auto batcher = DbCallbackBatcher::Get();
-
-    if(batcher == nullptr)
-    {
-        PLUG_CB_DBOPERATION info;
-        info.operations = & op;
-        info.count = 1;
-
-        plugincbcall(CB_DBOPERATION, &info);
-
-        return;
-    }
-
-    batcher->Add(op);
 }
