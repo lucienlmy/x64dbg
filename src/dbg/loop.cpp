@@ -182,18 +182,12 @@ bool LoopOverlaps(int Depth, duint Start, duint End, int* FinalDepth, duint* Fin
     return true;
 }
 
-static bool LoopDeleteAllRange(const DepthModuleRange & range)
+static bool LoopDeleteAllRange(const DepthModuleRange & range, std::vector<LOOPSINFO> & erasedLoops)
 {
-    DbCallbackBatcher batcher;
     auto erased = 0;
     for(auto found = loops.find(range); found != loops.end(); found = loops.find(range), erased++)
     {
-        DbOperation op;
-        op.opType = DbOperationType::Remove;
-        populateDbOperation(op, found->second);
-
-        DbCallbackBatcher::Add(op);
-
+        erasedLoops.push_back(found->second);
         loops.erase(found);
     }
     return erased > 0;
@@ -201,37 +195,63 @@ static bool LoopDeleteAllRange(const DepthModuleRange & range)
 
 void LoopDeleteRange(duint Start, duint End)
 {
-    EXCLUSIVE_ACQUIRE(LockLoops);
+    DbCallbackBatcher batcher;
 
     auto modBase = ModBaseFromAddr(Start);
     auto modHash = ModHashFromAddr(modBase);
 
-    // Delete all loops in the given range increasing the depth until nothing is left to delete
-    auto range = DepthModuleRange(0, ModuleRange(modHash, Range(Start - modBase, End - modBase)));
-    while(LoopDeleteAllRange(range))
-        range.first++;
+    std::vector<LOOPSINFO> erasedLoops;
+    {
+        EXCLUSIVE_ACQUIRE(LockLoops);
+
+        // Delete all loops in the given range increasing the depth until nothing is left to delete
+        auto range = DepthModuleRange(0, ModuleRange(modHash, Range(Start - modBase, End - modBase)));
+        while(LoopDeleteAllRange(range, erasedLoops))
+            range.first++;
+    }
+    for(const LOOPSINFO & loop : erasedLoops)
+    {
+        DbOperation op {};
+        op.opType = DbOperationType::Remove;
+        populateDbOperation(op, loop);
+
+        DbCallbackBatcher::Add(op);
+    }
 }
 
 // This should delete a loop and all sub-loops that matches a certain addr
 bool LoopDelete(int Depth, duint Address)
 {
+    DbCallbackBatcher batcher;
+
     // Get the virtual address module
     const duint moduleBase = ModBaseFromAddr(Address);
 
     // Virtual address to relative address
     Address -= moduleBase;
 
-    EXCLUSIVE_ACQUIRE(LockLoops);
+    std::vector<LOOPSINFO> erasedLoops;
+    {
+        EXCLUSIVE_ACQUIRE(LockLoops);
 
-    // Search with this address range
-    auto found = loops.find(DepthModuleRange(Depth, ModuleRange(ModHashFromAddr(moduleBase), Range(Address, Address))));
-    if(found == loops.end())
-        return false;
+        // Search with this address range
+        auto found = loops.find(DepthModuleRange(Depth, ModuleRange(ModHashFromAddr(moduleBase), Range(Address, Address))));
+        if(found == loops.end())
+            return false;
 
-    // Delete all loops in the given range increasing the depth until nothing is left to delete
-    auto range = found->first;
-    while(LoopDeleteAllRange(range))
-        range.first++;
+        // Delete all loops in the given range increasing the depth until nothing is left to delete
+        auto range = found->first;
+        while(LoopDeleteAllRange(range, erasedLoops))
+            range.first++;
+    }
+    for(const LOOPSINFO & loop : erasedLoops)
+    {
+        DbOperation op {};
+        op.opType = DbOperationType::Remove;
+        populateDbOperation(op, loop);
+
+        DbCallbackBatcher::Add(op);
+    }
 
     return true;
 }
