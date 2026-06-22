@@ -2874,9 +2874,9 @@ static void debugLoopFunction(INIT_STRUCT* init)
 
     if(!init->attach)
     {
-        // Load command line if it exists in DB
+        // Load command line if it exists in DB, but only if none was explicitly provided
         DbLoad(DbLoadSaveType::CommandLine);
-        if(!isCmdLineEmpty())
+        if(!isCmdLineEmpty() && init->commandline.empty())
         {
             char* commandLineArguments = NULL;
             commandLineArguments = getCommandLineArgs();
