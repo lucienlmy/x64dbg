@@ -24,6 +24,8 @@ class StringUtils
 public:
     static void Split(const String & s, char delim, std::vector<String> & elems);
     static StringList Split(const String & s, char delim);
+    static void Split(const String & s, const String & delims, std::vector<String> & elems);
+    static StringList Split(const String & s, const String & delims);
     static String Escape(unsigned char ch, bool escapeSafe = true);
     static String Escape(const String & s, bool escapeSafe = true);
     static bool Unescape(const String & s, String & result, bool quoted = true);

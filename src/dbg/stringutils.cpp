@@ -52,6 +52,33 @@ StringList StringUtils::Split(const String & s, char delim)
     return elems;
 }
 
+void StringUtils::Split(const String & s, const String & delims, std::vector<String> & elems)
+{
+    elems.clear();
+    String item;
+    item.reserve(s.length());
+    for(size_t i = 0; i < s.length(); i++)
+    {
+        if(delims.find(s[i]) != String::npos)
+        {
+            if(!item.empty())
+                elems.push_back(item);
+            item.clear();
+        }
+        else
+            item.push_back(s[i]);
+    }
+    if(!item.empty())
+        elems.push_back(std::move(item));
+}
+
+StringList StringUtils::Split(const String & s, const String & delims)
+{
+    std::vector<String> elems;
+    Split(s, delims, elems);
+    return elems;
+}
+
 //https://github.com/lefticus/presentations/blob/master/PracticalPerformancePractices.md#smaller-code-is-faster-code-11
 String StringUtils::Escape(unsigned char ch, bool escapeSafe)
 {
