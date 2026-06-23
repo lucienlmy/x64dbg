@@ -266,6 +266,8 @@ typedef struct
 {
     DbItemType itemType;
     DbOperationType opType;
+    duint address;
+    duint modhash;
     union
     {
         struct // unknown
@@ -286,8 +288,6 @@ typedef struct
             int depth;
         };
     };
-    duint address;
-    duint modhash;
     bool manual;
 } DbOperation;
 
