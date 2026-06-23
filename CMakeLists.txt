@@ -172,6 +172,7 @@ set(dbg_SOURCES
 	"src/dbg/WinInet-Downloader/downslib.cpp"
 	"src/dbg/WinInet-Downloader/downslib.h"
 	"src/dbg/XEDParse/XEDParse.h"
+	"src/dbg/_apichecker.c"
 	"src/dbg/_dbgfunctions.cpp"
 	"src/dbg/_dbgfunctions.h"
 	"src/dbg/_exports.cpp"

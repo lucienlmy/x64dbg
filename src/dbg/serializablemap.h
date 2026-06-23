@@ -121,7 +121,7 @@ public:
         if(added)
         {
             DbOperation op {};
-            op.opType = DbOperationType::Add;
+            op.opType = DbOperationTypeAdd;
 
             if(populateDbOperation(op, value))
             {
@@ -164,7 +164,7 @@ public:
         if(erased)
         {
             DbOperation op {};
-            op.opType = DbOperationType::Remove;
+            op.opType = DbOperationTypeRemove;
 
             if(populateDbOperation(op, value))
             {
@@ -194,7 +194,7 @@ public:
         for(const TValue & value : erased)
         {
             DbOperation op {};
-            op.opType = DbOperationType::Remove;
+            op.opType = DbOperationTypeRemove;
 
             if(populateDbOperation(op, value))
             {
@@ -223,7 +223,7 @@ public:
         for(const auto & kv : empty)
         {
             DbOperation op {};
-            op.opType = DbOperationType::Remove;
+            op.opType = DbOperationTypeRemove;
 
             if(populateDbOperation(op, kv.second))
             {
@@ -268,7 +268,7 @@ public:
                 if(addNoLock(value))
                 {
                     DbOperation op {};
-                    op.opType = DbOperationType::Add;
+                    op.opType = DbOperationTypeAdd;
 
                     if(populateDbOperation(op, value))
                     {

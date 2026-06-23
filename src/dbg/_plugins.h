@@ -246,21 +246,21 @@ typedef struct
     void* reserved;
 } PLUG_CB_STOPTRACE;
 
-enum class DbItemType
+typedef enum
 {
-    Function,
-    Label,
-    Comment,
-    Bookmark,
-    Loop,
-    Argument
-};
+    DbItemTypeFunction,
+    DbItemTypeLabel,
+    DbItemTypeComment,
+    DbItemTypeBookmark,
+    DbItemTypeLoop,
+    DbItemTypeArgument,
+} DbItemType;
 
-enum class DbOperationType
+typedef enum
 {
-    Add,
-    Remove
-};
+    DbOperationTypeAdd,
+    DbOperationTypeRemove,
+} DbOperationType;
 
 typedef struct
 {
@@ -268,6 +268,11 @@ typedef struct
     DbOperationType opType;
     union
     {
+        struct // unknown
+        {
+            void* reserved;
+        };
+
         struct // comments, labels
         {
             const char* text;

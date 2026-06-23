@@ -9,7 +9,7 @@ static std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> loops;
 
 static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
 {
-    op.itemType = DbItemType::Loop;
+    op.itemType = DbItemTypeLoop;
     op.modhash = info.modhash;
     op.address = info.start;
     op.end = info.end;
@@ -108,7 +108,7 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
     // shifts are not reported to plugins (DbOperationType has no Update). Only the new
     // loop's Add is surfaced here, consistent with the function callback behavior.
     DbOperation op {};
-    op.opType = DbOperationType::Add;
+    op.opType = DbOperationTypeAdd;
     populateDbOperation(op, loopInfo);
 
     DbCallbackBatcher::Add(op);
@@ -212,7 +212,7 @@ void LoopDeleteRange(duint Start, duint End)
     for(const LOOPSINFO & loop : erasedLoops)
     {
         DbOperation op {};
-        op.opType = DbOperationType::Remove;
+        op.opType = DbOperationTypeRemove;
         populateDbOperation(op, loop);
 
         DbCallbackBatcher::Add(op);
@@ -247,7 +247,7 @@ bool LoopDelete(int Depth, duint Address)
     for(const LOOPSINFO & loop : erasedLoops)
     {
         DbOperation op {};
-        op.opType = DbOperationType::Remove;
+        op.opType = DbOperationTypeRemove;
         populateDbOperation(op, loop);
 
         DbCallbackBatcher::Add(op);
@@ -331,7 +331,7 @@ void LoopCacheLoad(JSON Root)
             loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
 
             DbOperation op {};
-            op.opType = DbOperationType::Add;
+            op.opType = DbOperationTypeAdd;
             populateDbOperation(op, loopInfo);
 
             DbCallbackBatcher::Add(op);
@@ -393,7 +393,7 @@ void LoopClear()
     for(auto & itr : empty)
     {
         DbOperation op {};
-        op.opType = DbOperationType::Remove;
+        op.opType = DbOperationTypeRemove;
         populateDbOperation(op, itr.second);
 
         DbCallbackBatcher::Add(op);

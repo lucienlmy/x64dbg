@@ -44,7 +44,7 @@ namespace
                 DbOperation & operation = info->operations[i];
                 std::string saved = "";
 
-                if(operation.text && (operation.itemType == DbItemType::Comment || operation.itemType == DbItemType::Label))
+                if(operation.text && (operation.itemType == DbItemTypeComment || operation.itemType == DbItemTypeLabel))
                 {
                     saved = std::string(operation.text);
                 }
@@ -71,9 +71,9 @@ namespace
     static bool getOpType(char s, DbOperationType & type)
     {
         if(s == 'a')
-            type = DbOperationType::Add;
+            type = DbOperationTypeAdd;
         else if(s == 'r')
-            type = DbOperationType::Remove;
+            type = DbOperationTypeRemove;
         else
             return false;
 
@@ -83,17 +83,17 @@ namespace
     static bool getItemType(char s, DbItemType & type)
     {
         if(s == 'f')
-            type = DbItemType::Function;
+            type = DbItemTypeFunction;
         else if(s == 'l')
-            type = DbItemType::Label;
+            type = DbItemTypeLabel;
         else if(s == 'c')
-            type = DbItemType::Comment;
+            type = DbItemTypeComment;
         else if(s == 'b')
-            type = DbItemType::Bookmark;
+            type = DbItemTypeBookmark;
         else if(s == 'p')
-            type = DbItemType::Loop;
+            type = DbItemTypeLoop;
         else if(s == 'g')
-            type = DbItemType::Argument;
+            type = DbItemTypeArgument;
         else
             return false;
 
@@ -135,21 +135,21 @@ namespace
         bool bulk = (bool) evalExpr(argv[5]);
 
         const char* text = NULL;
-        if((itemType == DbItemType::Label || itemType == DbItemType::Comment) && argc >= 7)
+        if((itemType == DbItemTypeLabel || itemType == DbItemTypeComment) && argc >= 7)
         {
             text = argv[6];
             if(!_plugin_testassert(last.text == text, "text passed to callback doesn't match (%s != %s)", last.text.c_str(), text))
                 return false;
         }
 
-        if((itemType == DbItemType::Function || itemType == DbItemType::Argument || itemType == DbItemType::Loop) && argc >= 7)
+        if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop) && argc >= 7)
         {
             const duint end = evalExpr(argv[6]);
             if(!_plugin_testassert(last.operation.end == end, "end passed to callback doesn't match (%llu != %llu)", last.operation.end, end))
                 return false;
         }
 
-        if(itemType == DbItemType::Loop && argc >= 8)
+        if(itemType == DbItemTypeLoop && argc >= 8)
         {
             const int depth = (int) evalExpr(argv[7]);
             if(!_plugin_testassert(last.operation.depth == depth, "depth passed to callback doesn't match (%d != %d)", last.operation.depth, depth))

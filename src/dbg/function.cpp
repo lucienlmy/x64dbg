@@ -58,7 +58,7 @@ protected:
 
     bool populateDbOperation(DbOperation & op, const FUNCTIONSINFO & value) const override
     {
-        op.itemType = DbItemType::Function;
+        op.itemType = DbItemTypeFunction;
         op.modhash = value.modhash;
         op.address = value.start;
         op.end = value.end;

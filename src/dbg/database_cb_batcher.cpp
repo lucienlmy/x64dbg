@@ -31,7 +31,7 @@ void DbCallbackBatcher::Add(DbOperation & op)
 
     if(batcher != nullptr)
     {
-        if(op.text != nullptr && (op.itemType == DbItemType::Comment || op.itemType == DbItemType::Label)) // save c string in temporary string vector which will be cleared on flush
+        if(op.text != nullptr && (op.itemType == DbItemTypeComment || op.itemType == DbItemTypeLabel)) // save c string in temporary string vector which will be cleared on flush
         {
             batcher->mStrings.emplace_back(op.text);
             op.text = batcher->mStrings.back().c_str();

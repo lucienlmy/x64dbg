@@ -27,7 +27,7 @@ struct Labels : AddrInfoHashMap<LockLabels, LABELSINFO, LabelSerializer>
 protected:
     bool populateDbOperation(DbOperation & op, const LABELSINFO & value) const override
     {
-        op.itemType = DbItemType::Label;
+        op.itemType = DbItemTypeLabel;
         op.modhash = value.modhash;
         op.address = value.addr;
         op.text = value.text.c_str();

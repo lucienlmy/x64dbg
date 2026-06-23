@@ -52,7 +52,7 @@ protected:
 
     bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value) const override
     {
-        op.itemType = DbItemType::Argument;
+        op.itemType = DbItemTypeArgument;
         op.modhash = value.modhash;
         op.address = value.start;
         op.end = value.end;

@@ -11,11 +11,11 @@ extern "C"
     {
         return;
     }
-
-    void main()
-    {
-        Sleep(1000);
-    };
-#pragma code_seg(pop, membp_code)
 }
+
+int main()
+{
+    Sleep(1000);
+};
+#pragma code_seg(pop, membp_code)
 
