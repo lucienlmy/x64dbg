@@ -111,7 +111,7 @@ namespace
         TestOperation & last = operations.back();
 
         const duint modhash = evalExpr(argv[1]);
-        if(!_plugin_testassert(modhash == last.operation.modhash, "modhash passed to callback doesn't match (%llu != %llu)", last.operation.modhash, modhash))
+        if(!_plugin_testassert(modhash == last.operation.modhash, "modhash passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.modhash, (unsigned long long)modhash))
             return false;
 
         const duint target = evalExpr(argv[2]);
@@ -145,7 +145,7 @@ namespace
         if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop) && argc >= 7)
         {
             const duint end = evalExpr(argv[6]);
-            if(!_plugin_testassert(last.operation.end == end, "end passed to callback doesn't match (%llu != %llu)", last.operation.end, end))
+            if(!_plugin_testassert(last.operation.end == end, "end passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.end, (unsigned long long)end))
                 return false;
         }
 
@@ -156,7 +156,7 @@ namespace
                 return false;
         }
 
-        if(!_plugin_testassert(last.operation.address == target, "address passed to callback doesn't match (%llu != %llu)", last.operation.address, target))
+        if(!_plugin_testassert(last.operation.address == target, "address passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.address, (unsigned long long)target))
             return false;
 
         if(!_plugin_testassert(last.bulk == bulk, "bulk passed to callback doesn't match (%d != %d)", last.bulk, bulk))
@@ -170,7 +170,7 @@ namespace
             return false;
 
         const duint size = evalExpr(argv[1]);
-        if(!_plugin_testassert(size == operations.size(), "total operations size doesn't match (%llu != %llu)", size, operations.size()))
+        if(!_plugin_testassert(size == operations.size(), "total operations size doesn't match (%llu != %llu)", (unsigned long long)size, (unsigned long long)operations.size()))
             return false;
 
         return true;

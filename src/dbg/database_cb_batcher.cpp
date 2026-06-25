@@ -63,7 +63,15 @@ void DbCallbackBatcher::Flush()
     info.operations = mOperations.data();
     info.count = mOperations.size();
 
+    // Do not let reentrant database callbacks append to the batch being delivered.
+    auto activeBatcher = DbCallbackBatcher::tActiveBatcher;
+    if(activeBatcher == this)
+        DbCallbackBatcher::tActiveBatcher = mPrevious;
+
     plugincbcall(CB_DBOPERATION, &info);
+
+    if(activeBatcher == this)
+        DbCallbackBatcher::tActiveBatcher = activeBatcher;
 
     mOperations.clear();
     mStrings.clear();
