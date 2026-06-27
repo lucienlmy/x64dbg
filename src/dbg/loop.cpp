@@ -19,6 +19,14 @@ static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
     op.manual = info.manual;
 }
 
+static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info)
+{
+    DbOperation op {};
+    op.opType = opType;
+    populateDbOperation(op, info);
+    DbCallbackBatcher::Add(op);
+}
+
 bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
 {
     ASSERT_DEBUGGING("Export call");
@@ -73,45 +81,56 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
     if(loopInfo.parent)
         loopInfo.parent -= moduleBase;
 
-    EXCLUSIVE_ACQUIRE(LockLoops);
-
-    if(surround)
+    std::vector<std::pair<LOOPSINFO, LOOPSINFO>> depthChanges;
     {
-        // TODO: make this algorithm smarter, now it's O(n), but can be O(logn) with lower_bound
-        // However, this is probably an edge case, so we can not care for now
-        std::vector<std::pair<DepthModuleRange, LOOPSINFO>> reinsert;
-        for(auto loopItr = loops.begin(); loopItr != loops.end();)
+        EXCLUSIVE_ACQUIRE(LockLoops);
+
+        if(surround)
         {
-            auto & loop = loopItr->second;
-            if(loopInfo.modhash == loop.modhash && loopInfo.start <= loop.start && loopInfo.end >= loop.end)
+            // TODO: make this algorithm smarter, now it's O(n), but can be O(logn) with lower_bound
+            // However, this is probably an edge case, so we can not care for now
+            std::vector<std::pair<DepthModuleRange, LOOPSINFO>> reinsert;
+            for(auto loopItr = loops.begin(); loopItr != loops.end();)
             {
-                reinsert.emplace_back(loopItr->first, loopItr->second);
-                loopItr = loops.erase(loopItr);
+                auto & loop = loopItr->second;
+                if(loopInfo.modhash == loop.modhash && loopInfo.start <= loop.start && loopInfo.end >= loop.end)
+                {
+                    reinsert.emplace_back(loopItr->first, loopItr->second);
+                    loopItr = loops.erase(loopItr);
+                }
+                else
+                {
+                    ++loopItr;
+                }
             }
-            else
+            depthChanges.reserve(reinsert.size());
+            for(auto & loop : reinsert)
             {
-                ++loopItr;
+                LOOPSINFO oldInfo = loop.second;
+                loop.first.first++;
+                loop.second.depth++;
+                depthChanges.emplace_back(oldInfo, loop.second);
+                loops.insert(loop);
             }
         }
-        for(auto & loop : reinsert)
-        {
-            loop.first.first++;
-            loop.second.depth++;
-            loops.insert(loop);
-        }
+
+        // Insert into list
+        loops.emplace(DepthModuleRange(finalDepth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end))), loopInfo);
     }
 
-    // Insert into list
-    loops.emplace(DepthModuleRange(finalDepth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end))), loopInfo);
-
-    // TODO: the 'surround' path above re-inserts existing loops at depth+1. Those depth
-    // shifts are not reported to plugins (DbOperationType has no Update). Only the new
-    // loop's Add is surfaced here, consistent with the function callback behavior.
-    DbOperation op {};
-    op.opType = DbOperationTypeAdd;
-    populateDbOperation(op, loopInfo);
-
-    DbCallbackBatcher::Add(op);
+    if(depthChanges.empty())
+    {
+        notifyDbOperation(DbOperationTypeAdd, loopInfo);
+    }
+    else
+    {
+        DbCallbackBatcher batcher;
+        for(const auto & depthChange : depthChanges)
+            notifyDbOperation(DbOperationTypeRemove, depthChange.first);
+        notifyDbOperation(DbOperationTypeAdd, loopInfo);
+        for(const auto & depthChange : depthChanges)
+            notifyDbOperation(DbOperationTypeAdd, depthChange.second);
+    }
 
     return true;
 }
