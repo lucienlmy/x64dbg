@@ -230,11 +230,7 @@ void LoopDeleteRange(duint Start, duint End)
     }
     for(const LOOPSINFO & loop : erasedLoops)
     {
-        DbOperation op {};
-        op.opType = DbOperationTypeRemove;
-        populateDbOperation(op, loop);
-
-        DbCallbackBatcher::Add(op);
+        notifyDbOperation(DbOperationTypeRemove, loop);
     }
 }
 
@@ -265,11 +261,7 @@ bool LoopDelete(int Depth, duint Address)
     }
     for(const LOOPSINFO & loop : erasedLoops)
     {
-        DbOperation op {};
-        op.opType = DbOperationTypeRemove;
-        populateDbOperation(op, loop);
-
-        DbCallbackBatcher::Add(op);
+        notifyDbOperation(DbOperationTypeRemove, loop);
     }
 
     return true;
@@ -318,8 +310,6 @@ void LoopCacheLoad(JSON Root)
 {
     DbCallbackBatcher batcher;
 
-    EXCLUSIVE_ACQUIRE(LockLoops);
-
     // Inline lambda to parse each JSON entry
     auto AddLoops = [](const JSON Object, bool Manual)
     {
@@ -346,14 +336,14 @@ void LoopCacheLoad(JSON Root)
             if(loopInfo.end < loopInfo.start)
                 continue;
 
-            // Insert into global list
-            loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
+            {
+                EXCLUSIVE_ACQUIRE(LockLoops);
 
-            DbOperation op {};
-            op.opType = DbOperationTypeAdd;
-            populateDbOperation(op, loopInfo);
+                // Insert into global list
+                loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
+            }
 
-            DbCallbackBatcher::Add(op);
+            notifyDbOperation(DbOperationTypeAdd, loopInfo);
         }
     };
 
@@ -411,10 +401,6 @@ void LoopClear()
 
     for(auto & itr : empty)
     {
-        DbOperation op {};
-        op.opType = DbOperationTypeRemove;
-        populateDbOperation(op, itr.second);
-
-        DbCallbackBatcher::Add(op);
+        notifyDbOperation(DbOperationTypeRemove, itr.second);
     }
 }

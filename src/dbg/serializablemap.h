@@ -252,7 +252,6 @@ public:
 
     void CacheLoad(JSON root, const char* keyprefix = nullptr)
     {
-        EXCLUSIVE_ACQUIRE(TLock);
         auto jsonValues = json_object_get(root, keyprefix ? (keyprefix + String(jsonKey())).c_str() : jsonKey());
         if(!jsonValues)
             return;
@@ -265,7 +264,13 @@ public:
             TValue value;
             if(deserializer.Load(value))
             {
-                if(addNoLock(value))
+                bool added;
+                {
+                    EXCLUSIVE_ACQUIRE(TLock);
+                    added = addNoLock(value);
+                }
+
+                if(added)
                 {
                     DbOperation op {};
                     op.opType = DbOperationTypeAdd;
