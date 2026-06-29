@@ -19,11 +19,12 @@ static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
     op.manual = info.manual;
 }
 
-static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info)
+static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info, bool dbload = false)
 {
     DbOperation op {};
     op.opType = opType;
     populateDbOperation(op, info);
+    op.dbload = dbload;
     DbCallbackBatcher::Add(op);
 }
 
@@ -343,7 +344,7 @@ void LoopCacheLoad(JSON Root)
                 loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
             }
 
-            notifyDbOperation(DbOperationTypeAdd, loopInfo);
+            notifyDbOperation(DbOperationTypeAdd, loopInfo, true);
         }
     };
 

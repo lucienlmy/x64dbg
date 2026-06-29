@@ -277,6 +277,7 @@ public:
 
                     if(populateDbOperation(op, value))
                     {
+                        op.dbload = true;
                         DbCallbackBatcher::Add(op);
                     }
                 }

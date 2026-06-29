@@ -289,6 +289,7 @@ typedef struct
         };
     };
     bool manual;
+    bool dbload;
 } DbOperation;
 
 typedef struct
