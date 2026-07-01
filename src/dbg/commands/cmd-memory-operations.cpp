@@ -14,11 +14,17 @@ static bool FillDebugMemory(duint addr, duint size, uint8_t value)
     if(size == 0)
         return true;
 
+    constexpr duint patchTrackThreshold = 0x100;
+    const bool trackPatches = size <= patchTrackThreshold;
+
     std::vector<uint8_t> buffer(std::min<duint>(size, PAGE_SIZE), value);
     for(duint offset = 0; offset < size; offset += buffer.size())
     {
         const auto chunkSize = std::min<duint>(duint(buffer.size()), size - offset);
-        if(!MemWrite(addr + offset, buffer.data(), chunkSize))
+        const bool ok = trackPatches
+                        ? MemPatch(addr + offset, buffer.data(), chunkSize)
+                        : MemWrite(addr + offset, buffer.data(), chunkSize);
+        if(!ok)
             return false;
     }
     return true;
