@@ -161,25 +161,70 @@ bool tryassembledata(duint addr, unsigned char* dest, int destsize, int* size, c
     switch(di.type)
     {
     case enc_byte:
+        // For "db" only, a single all-hex operand longer than one byte is "packed" into
+        // several bytes, e.g. "db 11223344" (four bytes). An odd number of digits treats
+        // the leading digit as a half byte, e.g. "db 123" -> 01 23. An operand that is not
+        // pure hex (e.g. a leading minus) falls through to the per-item handling below.
+        if(di.operand.size() > 2 &&
+                di.operand.find_first_not_of("0123456789abcdefABCDEF") == String::npos)
+        {
+            const String & packed = di.operand;
+            size_t i = 0;
+            if(packed.size() % 2 != 0)
+            {
+                // the leading nibble forms a single byte
+                unsigned long long result = 0;
+                convertLongLongNumber(packed.substr(0, 1).c_str(), result, 16);
+                buffer.append((char*)&result, 1);
+                i++;
+            }
+            for(; i < packed.size(); i += 2)
+            {
+                unsigned long long result = 0;
+                convertLongLongNumber(packed.substr(i, 2).c_str(), result, 16);
+                buffer.append((char*)&result, 1);
+            }
+            retsize = buffer.size();
+            break;
+        }
+        [[fallthrough]];
     case enc_word:
     case enc_dword:
     case enc_fword:
     case enc_qword:
     {
-        unsigned long long result = 0;
-        if(!convertLongLongNumber(di.operand.c_str(), result, 16))
+        // Split the operand into whitespace-delimited items. Each item is a hex value
+        // that must fit in the data size, e.g. "db 1 2 3", "dd 12345678 1" or "db -11".
+        auto items = StringUtils::Split(di.operand, " \t");
+
+        // one or more values, each must fit in the data size (signed or unsigned)
+        for(const auto & item : items)
         {
-            strcpy_s(error, MAX_ERROR_SIZE, GuiTranslateText(QT_TRANSLATE_NOOP("DBG", "Failed to convert operand")));
-            return false;
-        }
-        auto buf = (char*)&result;
-        for(auto i = retsize; i < sizeof(result); i++)
-            if(buf[i])
+            unsigned long long result = 0;
+            if(!convertLongLongNumber(item.c_str(), result, 16))
+            {
+                strcpy_s(error, MAX_ERROR_SIZE, GuiTranslateText(QT_TRANSLATE_NOOP("DBG", "Failed to convert operand")));
+                return false;
+            }
+            // the bytes above the data size must be a valid zero- or sign-extension
+            auto buf = (unsigned char*)&result;
+            bool allZero = true, allOnes = true;
+            for(auto i = retsize; i < sizeof(result); i++)
+            {
+                if(buf[i] != 0x00)
+                    allZero = false;
+                if(buf[i] != 0xff)
+                    allOnes = false;
+            }
+            bool negative = (buf[retsize - 1] & 0x80) != 0;
+            if(!allZero && !(allOnes && negative))
             {
                 strcpy_s(error, MAX_ERROR_SIZE, GuiTranslateText(QT_TRANSLATE_NOOP("DBG", "Operand value too big")));
                 return false;
             }
-        buffer = String(buf, retsize);
+            buffer.append((char*)&result, retsize); //store the value little-endian
+        }
+        retsize = buffer.size();
     }
     break;
 
