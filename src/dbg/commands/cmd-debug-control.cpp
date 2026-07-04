@@ -416,11 +416,20 @@ bool cbDebugPause(int argc, char* argv[])
         dputs(QT_TRANSLATE_NOOP("DBG", "Program is not running"));
         return false;
     }
-    // NOTE: As soon as SetBPX plants the INT3, another thread can hit it and the
-    // breakpoint callback will reassign the global hActiveThread. Operate on a local
-    // copy so the SuspendThread/ResumeThread pair always targets the same thread.
+    // After attaching, the active thread is whatever thread reported the last
+    // attach event (usually an idle worker that never wakes up). Target the
+    // main thread instead until a real debug event selects an active thread.
     HANDLE hPauseThread = hActiveThread;
-    DWORD dwPauseThreadId = GetDebugData()->dwThreadId;
+    if(auto mainThreadId = dbggetattachmainthread())
+    {
+        auto hMainThread = ThreadGetHandle(mainThreadId);
+        if(hMainThread)
+            hPauseThread = hMainThread;
+    }
+    // As soon as SetBPX plants the INT3, another thread can hit it and the
+    // breakpoint callback can reassign hActiveThread. Keep using this local
+    // handle so SuspendThread and ResumeThread target the same thread.
+    DWORD dwPauseThreadId = GetThreadId(hPauseThread);
     // TODO: get suspend count instead, this can be detected
     // Interesting behavior found by JustMagic, if the active thread is suspended pause would fail
     auto previousSuspendCount = SuspendThread(hPauseThread);

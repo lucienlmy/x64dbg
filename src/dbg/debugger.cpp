@@ -38,6 +38,7 @@
 #include "debugger_tracing.h"
 #include "handles.h"
 #include <shellapi.h>
+#include <tlhelp32.h>
 
 // Debugging variables
 static PROCESS_INFORMATION g_pi = {0, 0, 0, 0};
@@ -51,6 +52,7 @@ static bool bRepeatIn = false;
 static duint stepRepeat = 0;
 static bool bIsAttached = false;
 static bool bPauseAtAttach = false;
+static DWORD dwAttachMainThread = 0;
 static bool bSkipExceptions = false;
 static duint skipExceptionCount = 0;
 static bool bFreezeStack = false;
@@ -341,6 +343,16 @@ bool dbgisdll()
 void dbgsetattachevent(HANDLE handle)
 {
     hEvent = handle;
+}
+
+DWORD dbggetattachmainthread()
+{
+    return dwAttachMainThread;
+}
+
+void dbgclearattachmainthread()
+{
+    dwAttachMainThread = 0;
 }
 
 void dbgsetresumetid(duint tid)
@@ -2230,10 +2242,80 @@ static void cbDebugEvent(DEBUG_EVENT* DebugEvent)
 {
     nextContinueStatus = DBG_EXCEPTION_NOT_HANDLED;
     hActiveThread = ThreadGetHandle(GetDebugData()->dwThreadId);
+    if(DebugEvent->dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
+        dwAttachMainThread = 0; //an exception makes the active thread meaningful, stop overriding the pause target
     InterlockedIncrement((volatile long*)&DbgEvents);
     PLUG_CB_DEBUGEVENT debugEventInfo;
     debugEventInfo.DebugEvent = DebugEvent;
     plugincbcall(CB_DEBUGEVENT, &debugEventInfo);
+}
+
+struct MainThreadEnumContext
+{
+    DWORD dwProcessId = 0;
+    DWORD dwVisibleWindowThread = 0;
+    DWORD dwAnyWindowThread = 0;
+};
+
+static BOOL CALLBACK cbMainThreadEnumWindows(HWND hWnd, LPARAM lParam)
+{
+    auto & context = *(MainThreadEnumContext*)lParam;
+    DWORD dwWindowProcessId = 0;
+    auto dwWindowThreadId = GetWindowThreadProcessId(hWnd, &dwWindowProcessId);
+    if(dwWindowProcessId == context.dwProcessId)
+    {
+        if(!context.dwAnyWindowThread)
+            context.dwAnyWindowThread = dwWindowThreadId;
+        if(IsWindowVisible(hWnd))
+        {
+            context.dwVisibleWindowThread = dwWindowThreadId;
+            return FALSE; //best candidate found, stop enumerating
+        }
+    }
+    return TRUE;
+}
+
+static DWORD getMainThreadId(DWORD dwProcessId)
+{
+    // Prefer the thread that owns a top-level window, because it pumps
+    // messages and can be woken up with WM_NULL by the pause command.
+    MainThreadEnumContext context;
+    context.dwProcessId = dwProcessId;
+    EnumWindows(cbMainThreadEnumWindows, (LPARAM)&context);
+    if(context.dwVisibleWindowThread)
+        return context.dwVisibleWindowThread;
+    if(context.dwAnyWindowThread)
+        return context.dwAnyWindowThread;
+
+    // Fall back to the thread that was created first.
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if(hSnapshot == INVALID_HANDLE_VALUE)
+        return 0;
+    DWORD dwMainThreadId = 0;
+    ULONGLONG earliestCreationTime = ~0ull;
+    THREADENTRY32 entry = {};
+    entry.dwSize = sizeof(entry);
+    for(auto ok = Thread32First(hSnapshot, &entry); ok; ok = Thread32Next(hSnapshot, &entry))
+    {
+        if(entry.th32OwnerProcessID != dwProcessId)
+            continue;
+        HANDLE hThread = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, entry.th32ThreadID);
+        if(!hThread)
+            continue;
+        FILETIME creationTime = {}, exitTime, kernelTime, userTime;
+        if(GetThreadTimes(hThread, &creationTime, &exitTime, &kernelTime, &userTime))
+        {
+            ULONGLONG time = (ULONGLONG(creationTime.dwHighDateTime) << 32) | creationTime.dwLowDateTime;
+            if(time != 0 && time < earliestCreationTime)
+            {
+                earliestCreationTime = time;
+                dwMainThreadId = entry.th32ThreadID;
+            }
+        }
+        CloseHandle(hThread);
+    }
+    CloseHandle(hSnapshot);
+    return dwMainThreadId;
 }
 
 static void cbAttachDebugger()
@@ -2250,6 +2332,13 @@ static void cbAttachDebugger()
         tidToResume = 0;
     }
     varset("$pid", fdProcessInfo->dwProcessId, true);
+
+    // The attach event storm reports an arbitrary thread last, which would
+    // become the active thread. Remember the main (message pump) thread so
+    // the pause command can target a thread that actually executes.
+    dwAttachMainThread = getMainThreadId(fdProcessInfo->dwProcessId);
+    if(dwAttachMainThread)
+        fdProcessInfo->dwThreadId = dwAttachMainThread; //TitanEngine leaves this at zero when attaching
 
     //Get on top of things
     SetForegroundWindow(GuiGetWindowHandle());
@@ -2861,6 +2950,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
     //initialize variables
     bIsAttached = init->attach;
     bPauseAtAttach = init->attach && init->pauseAtAttach;
+    dwAttachMainThread = 0;
     dbgsetskipexceptions(false);
     bFreezeStack = false;
 
@@ -3072,6 +3162,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
     TraceRecord.enableTraceRecording(false, nullptr); // Stop trace recording
     bIsDebugging = false;
     bPauseAtAttach = false;
+    dwAttachMainThread = 0;
     GuiSetDebugState(stopped);
     GuiUpdateAllViews();
     dputs(QT_TRANSLATE_NOOP("DBG", "Debugging stopped!"));

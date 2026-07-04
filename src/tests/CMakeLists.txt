@@ -188,6 +188,11 @@ foreach(test_name IN LISTS X64DBG_STANDARD_TESTS)
     x64dbg_add_test(NAME "${test_name}")
 endforeach()
 
+x64dbg_add_test(
+    NAME attach_pause
+    TARGET_LINK_LIBRARIES user32
+)
+
 x64dbg_add_membp_test()
 
 # random_dll intentionally remains excluded while its scaffold stays disabled.

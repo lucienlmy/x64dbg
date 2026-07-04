@@ -78,6 +78,8 @@ bool dbgisrunning();
 bool dbgisdebugging();
 bool dbgisdll();
 void dbgsetattachevent(HANDLE handle);
+DWORD dbggetattachmainthread();
+void dbgclearattachmainthread();
 void dbgsetresumetid(duint tid);
 void DebugUpdateGui(duint disasm_addr, bool stack);
 void DebugUpdateGuiAsync(duint disasm_addr, bool stack);
