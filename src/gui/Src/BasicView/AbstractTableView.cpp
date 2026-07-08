@@ -1407,9 +1407,12 @@ void AbstractTableView::accessibilitySelectionChanged()
 {
     if(QAccessible::isActive())
     {
-        QAccessibleInterface* accessible = QAccessible::queryAccessibleInterface(this);
-        QAccessibleEvent selectionEvent(accessible, QAccessible::SectionChanged);
+        QAccessibleEvent selectionEvent(this, QAccessible::SectionChanged);
         QAccessible::updateAccessibility(&selectionEvent);
+
+        QAccessibleInterface* accessible = QAccessible::queryAccessibleInterface(this);
+        if(!accessible)
+            return;
         if(hasFocus())
         {
             auto sel = accessibilitySelectedRow();
@@ -1433,15 +1436,11 @@ void AbstractTableView::accessibilityTableModelChanged()
 {
     if(QAccessible::isActive())
     {
-        QAccessibleInterface* accessibleInterface = QAccessible::queryAccessibleInterface(this);
-        QAccessibleTableModelChangeEvent model(accessibleInterface, QAccessibleTableModelChangeEvent::ModelReset);
-        model.setFirstColumn(0);
-        model.setFirstRow(0);
-        if(getViewableRowsCount() < getRowCount())
-            model.setLastRow(getViewableRowsCount() + 1);
-        else
-            model.setLastRow(getRowCount() + 1);
-        model.setLastColumn(getColumnCount());
+        // Use the QObject-based constructor for QObject-backed accessible interfaces.
+        // The QAccessibleInterface-based constructor is only safe for virtual children
+        // whose object() is nullptr; with QWidget-backed interfaces Qt 6 Cocoa may
+        // interpret the interface id as a child index when posting the notification.
+        QAccessibleTableModelChangeEvent model(this, QAccessibleTableModelChangeEvent::ModelReset);
         QAccessible::updateAccessibility(&model);
     }
 }
