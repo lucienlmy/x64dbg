@@ -85,7 +85,7 @@ The expression `utf8(rax)` does not return a number, so it cannot be used as a t
 * `dis.next(addr)`: Address of the next instruction from `addr`.
 * `dis.prev(addr)`: Address of the previous instruction from `addr`.
 * `dis.iscallsystem(addr)`: True if the instruction at `addr` goes to a system module.
-* `dis.mnemonic(addr)`: Returns the mnemonic `str` for `addr`. Example: `str.streq(dis.mnemonic(cip), "cpuid")`.
+* `dis.mnemonic(addr)`: Returns the mnemonic `str` for `addr`. Example: `streq(dis.mnemonic(cip), "cpuid")`.
 * `dis.text(addr)`: Returns the instruction text as a string `addr`. Can be used for conditions, for example: `strstr(dis.text(rip), "rbx")`. **Note**: the instruction text might not exactly match the formatting in the GUI.
 * `dis.match(addr, str)`: True if the instruction at `addr` matches the regex in `str`. Example: `dis.match(rip, "test.+, 0x1")`. You can use `dis.text` to see what you can match on.
 
