@@ -99,10 +99,11 @@ void CPUArgumentWidget::refreshData()
         duint argOffset = mStackOffset + i * sizeof(duint);
         QString expr = argOffset ? QString("%1+%2").arg(stackLocation).arg(ToHexString(argOffset)) : stackLocation;
 
-        QString format = defaultArgFormat("", QString("[%1]").arg(expr));
+        QString valueExpr = QString("[%1]").arg(expr);
+        QString format = defaultArgFormat("", valueExpr);
         auto data = StringFormatInline(format);
         auto text = defaultArgFieldFormat(defaultArgName("", argCount + i + 1), data);
-        mArgumentValues.push_back(DbgValFromString(expr.toUtf8().constData()));
+        mArgumentValues.push_back(DbgValFromString(valueExpr.toUtf8().constData()));
         mTable->setCellContent(argCount + i, 0, text);
     }
 
