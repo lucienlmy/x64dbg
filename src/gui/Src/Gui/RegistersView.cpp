@@ -3512,8 +3512,11 @@ void RegistersView::accessibilityValueChanged()
                 if(a)
                 {
                     QAccessibleInterface* child = a->child(i);
-                    QAccessibleValueChangeEvent valueChangeEvent(child, QVariant(child->text(QAccessible::Value)));
-                    QAccessible::updateAccessibility(&valueChangeEvent);
+                    if(child)
+                    {
+                        QAccessibleValueChangeEvent valueChangeEvent(child, QVariant(child->text(QAccessible::Value)));
+                        QAccessible::updateAccessibility(&valueChangeEvent);
+                    }
                 }
             }
         }
