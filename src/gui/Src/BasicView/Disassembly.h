@@ -95,6 +95,11 @@ public:
     bool isHighlightMode() const;
     bool followInstruction(duint rva);
 
+    //color
+    void setRangeLineColor(duint vaStart, duint vaEnd, LINECOLORPRESET preset);
+    void clearRangeLineColor(duint vaStart, duint vaEnd);
+    void setLineColor(duint va, LINECOLORPRESET preset);
+    void clearLineColor(duint va);
 signals:
     void selectionChanged(duint va);
     void selectionExpanded();
@@ -240,6 +245,8 @@ protected:
 
     QColor mLoopColor;
     QColor mFunctionColor;
+
+    QColor mLineColorPresets[linecolor_purple + 1];
 
     QPen mLoopPen;
     QPen mFunctionPen;

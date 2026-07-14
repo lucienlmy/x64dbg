@@ -118,6 +118,18 @@ void Disassembly::updateColors()
     mConditionalJumpLineFalseColor = ConfigColor("DisassemblyConditionalJumpLineFalseColor");
     mLoopColor = ConfigColor("DisassemblyLoopColor");
     mFunctionColor = ConfigColor("DisassemblyFunctionColor");
+    mLineColorPresets[linecolor_none] = Qt::transparent;
+    mLineColorPresets[linecolor_red] = ConfigColor("DisassemblyLineColorRed");
+    mLineColorPresets[linecolor_green] = ConfigColor("DisassemblyLineColorGreen");
+    mLineColorPresets[linecolor_blue] = ConfigColor("DisassemblyLineColorBlue");
+    mLineColorPresets[linecolor_yellow] = ConfigColor("DisassemblyLineColorYellow");
+    mLineColorPresets[linecolor_orange] = ConfigColor("DisassemblyLineColorOrange");
+    mLineColorPresets[linecolor_purple] = ConfigColor("DisassemblyLineColorPurple");
+    duint lineColorAlpha = ConfigUint("Disassembler", "LineColorAlpha");
+    if(lineColorAlpha > 255)
+        lineColorAlpha = 255;
+    for(int i = linecolor_red; i <= linecolor_purple; i++)
+        mLineColorPresets[i].setAlpha(lineColorAlpha);
 
     auto a = mSelectionColor, b = mTracedAddressBackgroundColor;
     mTracedSelectedAddressBackgroundColor = QColor((a.red() + b.red()) / 2, (a.green() + b.green()) / 2, (a.blue() + b.blue()) / 2);
@@ -235,11 +247,12 @@ QString Disassembly::paintContent(QPainter* painter, duint row, duint col, int x
     auto va = rvaToVa(mInstBuffer.at(rowOffset).rva);
     auto traceCount = DbgFunctions()->GetTraceRecordHitCount(va);
 
+    QColor backgroundColor = mBackgroundColor;
     // Highlight if selected
     if(instSelected && traceCount)
-        painter->fillRect(QRect(x, y, w, h), QBrush(mTracedSelectedAddressBackgroundColor));
+        backgroundColor = mTracedSelectedAddressBackgroundColor;
     else if(instSelected)
-        painter->fillRect(QRect(x, y, w, h), QBrush(mSelectionColor));
+        backgroundColor = mSelectionColor;
     else if(traceCount)
     {
         // Color depending on how often a sequence of code is executed
@@ -252,11 +265,23 @@ QString Disassembly::paintContent(QPainter* painter, duint row, duint col, int x
         if(mTracedAddressBackgroundColor.blue() > 160)
             colorDiff *= -1;
 
-        painter->fillRect(QRect(x, y, w, h),
-                          QBrush(QColor(mTracedAddressBackgroundColor.red(),
-                                        mTracedAddressBackgroundColor.green(),
-                                        std::max(0, std::min(256, mTracedAddressBackgroundColor.blue() + colorDiff)))));
+        backgroundColor = QColor(mTracedAddressBackgroundColor.red(),
+                                 mTracedAddressBackgroundColor.green(),
+                                 std::max(0, std::min(256, mTracedAddressBackgroundColor.blue() + colorDiff)));
     }
+
+    unsigned int linePreset;
+    if(DbgGetLineColorAt(va, &linePreset))
+    {
+        const QColor & color = mLineColorPresets[linePreset];
+        backgroundColor = QColor(
+                              (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
+                              (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
+                              (backgroundColor.blue()  * (255 - color.alpha()) + color.blue()  * color.alpha()) / 255,
+                              backgroundColor.alpha()
+                          );
+    }
+    painter->fillRect(QRect(x, y, w, h), QBrush(backgroundColor));
 
     switch(col)
     {
@@ -2422,4 +2447,29 @@ int Disassembly::accessibilitySelectedRow() const
             return i;
     }
     return -1;
+}
+
+void Disassembly::setLineColor(duint va, LINECOLORPRESET preset)
+{
+    DbgSetLineColorAt(va, preset);
+    GuiUpdateDisassemblyView();
+}
+
+void Disassembly::setRangeLineColor(duint vaStart, duint vaEnd, LINECOLORPRESET preset)
+{
+    for(duint va = vaStart; va <= vaEnd; va++)
+        DbgSetLineColorAt(va, preset);
+    GuiUpdateDisassemblyView();
+}
+
+void Disassembly::clearRangeLineColor(duint vaStart, duint vaEnd)
+{
+    DbgDelLineColorRange(vaStart, vaEnd);
+    GuiUpdateDisassemblyView();
+}
+
+void Disassembly::clearLineColor(duint va)
+{
+    DbgDelLineColorRange(va, va);
+    GuiUpdateDisassemblyView();
 }

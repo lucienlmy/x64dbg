@@ -4,6 +4,8 @@
 #include <QMessageBox>
 #include <QCheckBox>
 #include <QDir>
+#include <QPixmap>
+#include <QPainter>
 #include "LineEditDialog.h"
 #include "ComboBoxDialog.h"
 #include "StringUtil.h"
@@ -414,4 +416,17 @@ QString mainModuleName(bool extension)
         return name;
     }
     return QString();
+}
+
+QIcon ColorIcon(QColor color, int size)
+{
+    QPixmap pixmap(size, size);
+    color.setAlpha(255);
+    pixmap.fill(color);
+
+    QPainter painter(&pixmap);
+    painter.setPen(QColor(0, 0, 0, 100));
+    painter.drawRect(0, 0, size - 1, size - 1);
+
+    return QIcon(pixmap);
 }

@@ -370,6 +370,26 @@ void CPUDisassembly::setupRightClickContextMenu()
     mMenuBuilder->addAction(makeShortcutAction(DIcon("highlight"), tr("&Highlighting mode"), SLOT(enableHighlightingModeSlot()), "ActionHighlightingMode"));
     mMenuBuilder->addAction(makeAction(tr("Edit columns..."), SLOT(editColumnDialog())));
 
+    const QVector<QPair<QString, LINECOLORPRESET>> linePresets =
+    {
+        { "Red", linecolor_red },
+        { "Green", linecolor_green },
+        { "Blue", linecolor_blue },
+        { "Yellow", linecolor_yellow },
+        { "Orange", linecolor_orange },
+        { "Purple", linecolor_purple },
+    };
+
+    MenuBuilder* colorMenu = new MenuBuilder(this);
+    for(const auto & preset : linePresets)
+    {
+        QAction* action = makeAction(ColorIcon(ConfigColor("DisassemblyLineColor" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setLineColorSlot()));
+        action->setData(preset.second);
+        colorMenu->addAction(action);
+    }
+    colorMenu->addAction(makeAction(tr("Clear"), SLOT(clearLineColorSlot())));
+    mMenuBuilder->addMenu(makeMenu(DIcon("color-swatches"), tr("Color")), colorMenu);
+
     MenuBuilder* labelMenu = new MenuBuilder(this);
     labelMenu->addAction(makeShortcutAction(tr("Label Current Address"), SLOT(setLabelSlot()), "ActionSetLabel"));
     QAction* labelAddress = makeShortcutAction(tr("Label"), SLOT(setLabelAddressSlot()), "ActionSetLabelOperand");
@@ -1655,6 +1675,25 @@ void CPUDisassembly::copySelectionSlot()
 void CPUDisassembly::copySelectionToFileSlot()
 {
     copySelectionToFileSlot(true);
+}
+
+void CPUDisassembly::setLineColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    QAction* action = qobject_cast<QAction*>(sender());
+    if(!action)
+        return;
+
+    LINECOLORPRESET preset = LINECOLORPRESET(action->data().toInt());
+    setRangeLineColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+}
+
+void CPUDisassembly::clearLineColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    clearRangeLineColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()));
 }
 
 void CPUDisassembly::copySelectionNoBytesSlot()

@@ -232,7 +232,8 @@ typedef enum
     flagfunction = 0x10,
     flagloop = 0x20,
     flagargs = 0x40,
-    flagNoFuncOffset = 0x80
+    flagNoFuncOffset = 0x80,
+    flaglinecolor = 0x100
 } ADDRINFOFLAGS;
 
 typedef enum
@@ -332,6 +333,7 @@ typedef enum
     DBG_SYMBOL_ENUM_FROMCACHE,      // param1=SYMBOLCBINFO* cbInfo,      param2=unused
     DBG_DELETE_COMMENT_RANGE,       // param1=duint start,               param2=duint end
     DBG_DELETE_LABEL_RANGE,         // param1=duint start,               param2=duint end
+    DBG_DELETE_LINECOLOR_RANGE,     // param1=duint start,               param2=duint end
     DBG_DELETE_BOOKMARK_RANGE,      // param1=duint start,               param2=duint end
     DBG_GET_XREF_COUNT_AT,          // param1=duint addr,                param2=unused
     DBG_GET_XREF_TYPE_AT,           // param1=duint addr,                param2=unused
@@ -672,6 +674,7 @@ typedef struct
     char module[MAX_MODULE_SIZE]; //module the address is in
     char label[MAX_LABEL_SIZE];
     char comment[MAX_COMMENT_SIZE];
+    unsigned int color;
     bool isbookmark;
     FUNCTION function;
     LOOP loop;
@@ -1242,6 +1245,20 @@ BRIDGE_IMPEXP DEBUG_ENGINE DbgGetDebugEngine();
 BRIDGE_IMPEXP bool DbgGetSymbolInfoAt(duint addr, SYMBOLINFO* info);
 BRIDGE_IMPEXP duint DbgXrefAddMulti(const XREF_EDGE* edges, duint count);
 BRIDGE_IMPEXP void DbgUpdateGui(duint disasm_addr, bool stack);
+typedef enum
+{
+    linecolor_none = 0,
+    linecolor_red,
+    linecolor_green,
+    linecolor_blue,
+    linecolor_yellow,
+    linecolor_orange,
+    linecolor_purple,
+} LINECOLORPRESET;
+
+BRIDGE_IMPEXP bool DbgGetLineColorAt(duint addr, unsigned int* preset);
+BRIDGE_IMPEXP bool DbgSetLineColorAt(duint addr, unsigned int preset);
+BRIDGE_IMPEXP void DbgDelLineColorRange(duint start, duint end);
 
 typedef enum
 {

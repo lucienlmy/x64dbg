@@ -63,6 +63,12 @@ Configuration::Configuration() : QObject(), noMoreMsgbox(false)
     defaultColors.insert("DisassemblyMnemonicBriefBackgroundColor", Qt::transparent);
     defaultColors.insert("DisassemblyFunctionColor", QColor("#000000"));
     defaultColors.insert("DisassemblyLoopColor", QColor("#000000"));
+    defaultColors.insert("DisassemblyLineColorRed", QColor("#C83232"));
+    defaultColors.insert("DisassemblyLineColorGreen", QColor("#3CB43C"));
+    defaultColors.insert("DisassemblyLineColorBlue", QColor("#3C78C8"));
+    defaultColors.insert("DisassemblyLineColorYellow", QColor("#C8B432"));
+    defaultColors.insert("DisassemblyLineColorOrange", QColor("#D27828"));
+    defaultColors.insert("DisassemblyLineColorPurple", QColor("#9650BE"));
 
     defaultColors.insert("SideBarBackgroundColor", QColor("#FFF8F0"));
     defaultColors.insert("SideBarCipLabelColor", QColor("#FFFFFF"));
@@ -361,6 +367,7 @@ Configuration::Configuration() : QObject(), noMoreMsgbox(false)
     QMap<QString, duint> disasmUint;
     disasmUint.insert("0xPrefixValues", DisasmValueNotationNone);
     disasmUint.insert("MaxModuleSize", -1);
+    disasmUint.insert("LineColorAlpha", 60);
     defaultUints.insert("Disassembler", disasmUint);
 
     //font settings

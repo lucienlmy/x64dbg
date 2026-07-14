@@ -356,15 +356,14 @@ void DisassemblerGraphView::paintNormal(QPainter & p, QRect & viewportRect, int 
                         auto selected = instr.addr == this->cur_instr;
                         auto traceCount = dbgfunctions->GetTraceRecordHitCount(instr.addr);
 
+                        QColor backgroundColor = disassemblyBackgroundColor;
                         if(selected && traceCount)
                         {
-                            p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
-                                             int(instr.text.lines.size()) * this->charHeight), disassemblyTracedSelectionColor);
+                            backgroundColor = disassemblyTracedSelectionColor;
                         }
                         else if(selected)
                         {
-                            p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
-                                             int(instr.text.lines.size()) * this->charHeight), disassemblySelectionColor);
+                            backgroundColor = disassemblySelectionColor;
                         }
                         else if(traceCount)
                         {
@@ -378,11 +377,25 @@ void DisassemblerGraphView::paintNormal(QPainter & p, QRect & viewportRect, int 
                             if(disassemblyTracedColor.blue() > 160)
                                 colorDiff *= -1;
 
-                            p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth), int(instr.text.lines.size()) * this->charHeight),
-                                       QColor(disassemblyTracedColor.red(),
-                                              disassemblyTracedColor.green(),
-                                              std::max(0, std::min(256, disassemblyTracedColor.blue() + colorDiff))));
+                            backgroundColor = QColor(disassemblyTracedColor.red(),
+                                                     disassemblyTracedColor.green(),
+                                                     std::max(0, std::min(256, disassemblyTracedColor.blue() + colorDiff)));
                         }
+
+                        unsigned int linePreset;
+                        if(DbgGetLineColorAt(instr.addr, &linePreset))
+                        {
+                            const QColor & color = mLineColorPresets[linePreset];
+                            backgroundColor = QColor(
+                                                  (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
+                                                  (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
+                                                  (backgroundColor.blue()  * (255 - color.alpha()) + color.blue()  * color.alpha()) / 255,
+                                                  backgroundColor.alpha()
+                                              );
+                        }
+
+                        p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
+                                         int(instr.text.lines.size()) * this->charHeight), backgroundColor);
                     }
                     y += int(instr.text.lines.size()) * this->charHeight;
                 }
@@ -673,15 +686,14 @@ void DisassemblerGraphView::paintZoom(QPainter & p, QRect & viewportRect, int xo
                             auto selected = instr.addr == this->cur_instr;
                             auto traceCount = dbgfunctions->GetTraceRecordHitCount(instr.addr);
 
+                            QColor backgroundColor = disassemblyBackgroundColor;
                             if(selected && traceCount)
                             {
-                                p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
-                                                 int(instr.text.lines.size()) * this->charHeight), disassemblyTracedSelectionColor);
+                                backgroundColor = disassemblyTracedSelectionColor;
                             }
                             else if(selected)
                             {
-                                p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
-                                                 int(instr.text.lines.size()) * this->charHeight), disassemblySelectionColor);
+                                backgroundColor = disassemblySelectionColor;
                             }
                             else if(traceCount)
                             {
@@ -695,11 +707,25 @@ void DisassemblerGraphView::paintZoom(QPainter & p, QRect & viewportRect, int xo
                                 if(disassemblyTracedColor.blue() > 160)
                                     colorDiff *= -1;
 
-                                p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth), int(instr.text.lines.size()) * this->charHeight),
-                                           QColor(disassemblyTracedColor.red(),
-                                                  disassemblyTracedColor.green(),
-                                                  std::max(0, std::min(256, disassemblyTracedColor.blue() + colorDiff))));
+                                backgroundColor = QColor(disassemblyTracedColor.red(),
+                                                         disassemblyTracedColor.green(),
+                                                         std::max(0, std::min(256, disassemblyTracedColor.blue() + colorDiff)));
                             }
+
+                            unsigned int linePreset;
+                            if(DbgGetLineColorAt(instr.addr, &linePreset))
+                            {
+                                const QColor & color = mLineColorPresets[linePreset];
+                                backgroundColor = QColor(
+                                                      (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
+                                                      (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
+                                                      (backgroundColor.blue()  * (255 - color.alpha()) + color.blue()  * color.alpha()) / 255,
+                                                      backgroundColor.alpha()
+                                                  );
+                            }
+
+                            p.fillRect(QRect(block.x + this->charWidth + 3, y, block.width - (10 + 2 * this->charWidth),
+                                             int(instr.text.lines.size()) * this->charHeight), backgroundColor);
                         }
                         y += int(instr.text.lines.size()) * this->charHeight;
                     }
@@ -2426,6 +2452,18 @@ void DisassemblerGraphView::colorsUpdatedSlot()
     mLabelBackgroundColor = ConfigColor("DisassemblyLabelBackgroundColor");
     mAddressColor = ConfigColor("DisassemblyAddressColor");
     mAddressBackgroundColor = ConfigColor("DisassemblyAddressBackgroundColor");
+    mLineColorPresets[linecolor_none] = Qt::transparent;
+    mLineColorPresets[linecolor_red] = ConfigColor("DisassemblyLineColorRed");
+    mLineColorPresets[linecolor_green] = ConfigColor("DisassemblyLineColorGreen");
+    mLineColorPresets[linecolor_blue] = ConfigColor("DisassemblyLineColorBlue");
+    mLineColorPresets[linecolor_yellow] = ConfigColor("DisassemblyLineColorYellow");
+    mLineColorPresets[linecolor_orange] = ConfigColor("DisassemblyLineColorOrange");
+    mLineColorPresets[linecolor_purple] = ConfigColor("DisassemblyLineColorPurple");
+    duint lineColorAlpha = ConfigUint("Disassembler", "LineColorAlpha");
+    if(lineColorAlpha > 255)
+        lineColorAlpha = 255;
+    for(int i = linecolor_red; i <= linecolor_purple; i++)
+        mLineColorPresets[i].setAlpha(lineColorAlpha);
 
     jmpColor = ConfigColor("GraphJmpColor");
     brtrueColor = ConfigColor("GraphBrtrueColor");

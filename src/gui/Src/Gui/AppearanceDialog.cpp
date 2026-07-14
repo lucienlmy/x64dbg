@@ -479,6 +479,12 @@ void AppearanceDialog::colorInfoListInit()
     colorInfoListAppend(tr("Traced line"), "DisassemblyTracedBackgroundColor", "");
     colorInfoListAppend(tr("Function Lines"), "DisassemblyFunctionColor", "");
     colorInfoListAppend(tr("Loop Lines"), "DisassemblyLoopColor", "");
+    colorInfoListAppend(tr("Line Color (Red)"), "DisassemblyLineColorRed", "");
+    colorInfoListAppend(tr("Line Color (Green)"), "DisassemblyLineColorGreen", "");
+    colorInfoListAppend(tr("Line Color (Blue)"), "DisassemblyLineColorBlue", "");
+    colorInfoListAppend(tr("Line Color (Yellow)"), "DisassemblyLineColorYellow", "");
+    colorInfoListAppend(tr("Line Color (Orange)"), "DisassemblyLineColorOrange", "");
+    colorInfoListAppend(tr("Line Color (Purple)"), "DisassemblyLineColorPurple", "");
 
 
     colorInfoListCategory(tr("SideBar:"), "SideBarBackgroundColor", "Disassembly");
