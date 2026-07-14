@@ -414,22 +414,27 @@ bool cbDebugPause(int argc, char* argv[])
         dputs(QT_TRANSLATE_NOOP("DBG", "Program is not running"));
         return false;
     }
+    // NOTE: As soon as SetBPX plants the INT3, another thread can hit it and the
+    // breakpoint callback will reassign the global hActiveThread. Operate on a local
+    // copy so the SuspendThread/ResumeThread pair always targets the same thread.
+    HANDLE hPauseThread = hActiveThread;
+    DWORD dwPauseThreadId = GetDebugData()->dwThreadId;
     // TODO: get suspend count instead, this can be detected
     // Interesting behavior found by JustMagic, if the active thread is suspended pause would fail
-    auto previousSuspendCount = SuspendThread(hActiveThread);
+    auto previousSuspendCount = SuspendThread(hPauseThread);
     if(previousSuspendCount != 0)
     {
         if(previousSuspendCount != -1)
-            ResumeThread(hActiveThread);
+            ResumeThread(hPauseThread);
         dputs(QT_TRANSLATE_NOOP("DBG", "The active thread is suspended, switch to a running thread to pause the process"));
         // TODO: perhaps inject an INT3 in the process as an alternative to failing?
         return false;
     }
-    duint CIP = GetContextDataEx(hActiveThread, UE_CIP);
+    duint CIP = GetContextDataEx(hPauseThread, UE_CIP);
     if(!SetBPX(CIP, UE_BREAKPOINT, cbPauseBreakpoint))
     {
         dprintf(QT_TRANSLATE_NOOP("DBG", "Error setting breakpoint at %p! (SetBPX)\n"), CIP);
-        if(ResumeThread(hActiveThread) == -1)
+        if(ResumeThread(hPauseThread) == -1)
         {
             dputs(QT_TRANSLATE_NOOP("DBG", "Error resuming thread"));
             return false;
@@ -439,8 +444,8 @@ bool cbDebugPause(int argc, char* argv[])
     //WORKAROUND: If a program is stuck in NtUserGetMessage (GetMessage was called), this
     //will send a WM_NULL to stop the waiting. This only works if the message is not filtered.
     //OllyDbg also does this in a similar way.
-    PostThreadMessageA(GetDebugData()->dwThreadId, WM_NULL, 0, 0);
-    if(ResumeThread(hActiveThread) == -1)
+    PostThreadMessageA(dwPauseThreadId, WM_NULL, 0, 0);
+    if(ResumeThread(hPauseThread) == -1)
     {
         dputs(QT_TRANSLATE_NOOP("DBG", "Error resuming thread"));
         return false;
