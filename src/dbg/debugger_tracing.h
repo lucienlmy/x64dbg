@@ -139,20 +139,22 @@ struct TraceState
     {
         delete cmdCondition;
         cmdCondition = nullptr;
+        // An empty expression means the command condition defaults to the break
+        // condition. The trace condition is not initialized yet at this point
+        // (TraceSetCommand executes before the trace is started), so the break
+        // condition evaluated during the trace is used in EvaluateCmd instead.
+        cmdConditionDefault = expression.empty();
         if(text.empty())
             return true;
-        if(expression.empty())
-        {
-            cmdCondition = new TextCondition(traceCondition->condition.GetExpression(), text);
-        }
-        else
-            cmdCondition = new TextCondition(expression, text);
+        cmdCondition = new TextCondition(cmdConditionDefault ? "1" : expression, text);
         return cmdCondition->condition.IsValidExpression();
     }
 
     char EvaluateCmd(char defaultValue) const
     {
-        return cmdCondition ? cmdCondition->Evaluate() : defaultValue;
+        if(cmdCondition == nullptr || cmdConditionDefault)
+            return defaultValue;
+        return cmdCondition->Evaluate();
     }
 
     const String & CmdText() const
@@ -193,6 +195,7 @@ struct TraceState
         logCondition = nullptr;
         delete cmdCondition;
         cmdCondition = nullptr;
+        cmdConditionDefault = false;
         logFile.clear();
         delete logWriter;
         logWriter = nullptr;
@@ -205,6 +208,7 @@ private:
     TraceCondition* traceCondition = nullptr;
     TextCondition* logCondition = nullptr;
     TextCondition* cmdCondition = nullptr;
+    bool cmdConditionDefault = false;
     String emptyString;
     WString logFile;
     BufferedWriter* logWriter = nullptr;

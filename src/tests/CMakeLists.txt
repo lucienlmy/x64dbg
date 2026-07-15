@@ -180,6 +180,7 @@ set(X64DBG_STANDARD_TESTS
     script_run_exit
     scriptcmd_call
     scriptcmd_call_threads
+    trace_cmd_condition
 )
 
 foreach(test_name IN LISTS X64DBG_STANDARD_TESTS)
