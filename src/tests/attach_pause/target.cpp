@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include <cstdio>
+#include <cstring>
 
 static HANDLE gParkSignal;
 
@@ -21,8 +22,12 @@ static DWORD WINAPI SignaledParkedThread(LPVOID)
     return ParkedThread(nullptr);
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    // In block mode every thread (including the main thread) blocks forever,
+    // so a pause is only possible with a break-in thread.
+    bool blockMode = argc > 1 && std::strcmp(argv[1], "block") == 0;
+
     // Create the message queue before signaling readiness.
     MSG msg;
     PeekMessageW(&msg, nullptr, 0, 0, PM_NOREMOVE);
@@ -34,6 +39,9 @@ int main()
 
     std::printf("ready %lu %lu\n", GetCurrentProcessId(), GetCurrentThreadId());
     std::fflush(stdout);
+
+    if(blockMode)
+        return (int)ParkedThread(nullptr); // the driver terminates the process
 
     // Pump messages like the main thread of a GUI application. The pause
     // command wakes this loop up with WM_NULL; the driver stops it with WM_QUIT

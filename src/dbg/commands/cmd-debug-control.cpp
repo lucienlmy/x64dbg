@@ -416,6 +416,21 @@ bool cbDebugPause(int argc, char* argv[])
         dputs(QT_TRANSLATE_NOOP("DBG", "Program is not running"));
         return false;
     }
+    // If the previous pause request could not break the debuggee and no debug
+    // events happened since, the debuggee is stuck in a wait that the code
+    // below cannot interrupt. Requesting a pause again after a few seconds
+    // falls back to a break-in thread. This is not done right away because the
+    // extra thread can be used by the debuggee to detect the debugger.
+    static ULONGLONG lastPauseRequestTime = 0;
+    static duint lastPauseRequestEventCount = 0;
+    auto now = GetTickCount64();
+    auto stuck = lastPauseRequestTime != 0
+                 && now - lastPauseRequestTime >= 2000
+                 && dbggetdbgeventcount() == lastPauseRequestEventCount;
+    lastPauseRequestTime = now;
+    lastPauseRequestEventCount = dbggetdbgeventcount();
+    if(stuck && dbgspawnbreakinthread())
+        return true;
     // After attaching, the active thread is whatever thread reported the last
     // attach event (usually an idle worker that never wakes up). Target the
     // main thread instead until a real debug event selects an active thread.

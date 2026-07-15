@@ -53,6 +53,8 @@ static duint stepRepeat = 0;
 static bool bIsAttached = false;
 static bool bPauseAtAttach = false;
 static DWORD dwAttachMainThread = 0;
+static bool bBreakInExpected = false;
+static volatile long DbgEventsTotal = 0;
 static bool bSkipExceptions = false;
 static duint skipExceptionCount = 0;
 static bool bFreezeStack = false;
@@ -353,6 +355,26 @@ DWORD dbggetattachmainthread()
 void dbgclearattachmainthread()
 {
     dwAttachMainThread = 0;
+}
+
+duint dbggetdbgeventcount()
+{
+    return (duint)DbgEventsTotal;
+}
+
+bool dbgspawnbreakinthread()
+{
+    // Set the expectation before creating the thread, because the breakpoint
+    // event can arrive before DebugBreakProcess returns.
+    bBreakInExpected = true;
+    if(!DebugBreakProcess(fdProcessInfo->hProcess))
+    {
+        bBreakInExpected = false;
+        dputs(QT_TRANSLATE_NOOP("DBG", "Failed to create a break-in thread (DebugBreakProcess)"));
+        return false;
+    }
+    dputs(QT_TRANSLATE_NOOP("DBG", "Created a break-in thread to pause the debuggee"));
+    return true;
 }
 
 void dbgsetresumetid(duint tid)
@@ -2148,6 +2170,29 @@ static void cbException(EXCEPTION_DEBUG_INFO* ExceptionData)
     GuiSetLastException(ExceptionCode);
     lastExceptionInfo = *ExceptionData;
 
+    if(bBreakInExpected && ExceptionCode == EXCEPTION_BREAKPOINT && ExceptionData->dwFirstChance)
+    {
+        // The pause command spawned a break-in thread, treat its breakpoint
+        // as a pause instead of a debuggee exception.
+        bBreakInExpected = false;
+        dbgsetcontinuestatus(DBG_CONTINUE);
+        dputs(QT_TRANSLATE_NOOP("DBG", "paused!"));
+        auto CIP = GetContextDataEx(hActiveThread, UE_CIP);
+        DebugUpdateGuiSetStateAsync(CIP, paused);
+        _dbg_animatestop(); // Stop animating when paused
+        // Trace record
+        dbgtraceexecute(CIP);
+        //lock
+        lock(WAITID_RUN);
+        // Plugin callback
+        PLUG_CB_PAUSEDEBUG pauseInfo = { nullptr };
+        plugincbcall(CB_PAUSEDEBUG, &pauseInfo);
+        dbgsetforeground();
+        dbgsetskipexceptions(false);
+        wait(WAITID_RUN);
+        return;
+    }
+
     duint addr = (duint)ExceptionData->ExceptionRecord.ExceptionAddress;
     {
         BREAKPOINT bp;
@@ -2245,6 +2290,7 @@ static void cbDebugEvent(DEBUG_EVENT* DebugEvent)
     if(DebugEvent->dwDebugEventCode == EXCEPTION_DEBUG_EVENT)
         dwAttachMainThread = 0; //an exception makes the active thread meaningful, stop overriding the pause target
     InterlockedIncrement((volatile long*)&DbgEvents);
+    InterlockedIncrement(&DbgEventsTotal);
     PLUG_CB_DEBUGEVENT debugEventInfo;
     debugEventInfo.DebugEvent = DebugEvent;
     plugincbcall(CB_DEBUGEVENT, &debugEventInfo);
@@ -2951,6 +2997,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
     bIsAttached = init->attach;
     bPauseAtAttach = init->attach && init->pauseAtAttach;
     dwAttachMainThread = 0;
+    bBreakInExpected = false;
     dbgsetskipexceptions(false);
     bFreezeStack = false;
 
@@ -3163,6 +3210,7 @@ static void debugLoopFunction(INIT_STRUCT* init)
     bIsDebugging = false;
     bPauseAtAttach = false;
     dwAttachMainThread = 0;
+    bBreakInExpected = false;
     GuiSetDebugState(stopped);
     GuiUpdateAllViews();
     dputs(QT_TRANSLATE_NOOP("DBG", "Debugging stopped!"));

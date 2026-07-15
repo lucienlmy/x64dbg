@@ -80,6 +80,8 @@ bool dbgisdll();
 void dbgsetattachevent(HANDLE handle);
 DWORD dbggetattachmainthread();
 void dbgclearattachmainthread();
+duint dbggetdbgeventcount();
+bool dbgspawnbreakinthread();
 void dbgsetresumetid(duint tid);
 void DebugUpdateGui(duint disasm_addr, bool stack);
 void DebugUpdateGuiAsync(duint disasm_addr, bool stack);

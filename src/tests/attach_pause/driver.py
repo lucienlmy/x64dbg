@@ -134,9 +134,13 @@ def main() -> int:
             except subprocess.TimeoutExpired:
                 pass
 
+    # test.txt drives the base test, test.breakin.txt the break-in fallback.
+    script_name = Path(args.script).name
+    breakin_mode = script_name == "test.breakin.txt"
+
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if args.no_console_window else 0
     target = subprocess.Popen(
-        [str(debuggee)],
+        [str(debuggee)] + (["block"] if breakin_mode else []),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -172,6 +176,25 @@ def main() -> int:
 
         # Let the attach event storm and symbol loading settle.
         headless.wait_for_quiescence(idle=2, timeout=30)
+
+        if breakin_mode:
+            # Every thread of the target blocks forever, so the first pause
+            # request cannot interrupt anything.
+            headless.send("pause")
+            if headless.wait_for_line(lambda line: line == "[STATE] paused", 4) is not None:
+                return fail("unexpected_pause", "first pause request should not break a fully blocked debuggee")
+
+            # A repeated pause request after a few seconds must fall back to a
+            # break-in thread and interrupt the debuggee.
+            headless.send("pause")
+            if headless.wait_for_line(lambda line: line == "[STATE] paused", 10) is None:
+                return fail("breakin_no_effect", "repeated pause request did not break in")
+
+            shutdown_headless()
+            append_log(log_path, '[x64dbg-test] ASSERT PASS source=driver message="first pause request did not pause the blocked debuggee"')
+            append_log(log_path, '[x64dbg-test] ASSERT PASS source=driver message="repeated pause request paused via break-in thread"')
+            append_log(log_path, "[x64dbg-test] FINAL status=pass asserts=2")
+            return 0
 
         # Make a worker thread produce a debug event (OutputDebugString) and
         # then block forever, so the debugger's active thread is a thread that
