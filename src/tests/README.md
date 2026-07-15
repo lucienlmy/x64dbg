@@ -52,6 +52,10 @@ Examples:
 - `src/tests/membp/test.txt` -> `membp`
 - `src/tests/membp/test.write.txt` -> `membp/write`
 
+### Driver tests
+
+When a driver is present, `run.py` launches it instead of launching headless directly. The driver receives `--headless`, `--debuggee`, `--script`, `--runtime-dir`, `--userdir`, `--log`, `--artifacts-dir`, `--engine`, `--timeout`, and optionally `--no-console-window`. It is responsible for starting and stopping child processes, writing the canonical `FINAL` line to `--log`, and returning a nonzero exit code on failure. Driver tests that need plugins must load them when starting headless.
+
 ## Runtime layout
 
 Build output is placed under:

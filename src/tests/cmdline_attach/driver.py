@@ -9,6 +9,9 @@ import threading
 from pathlib import Path
 
 
+INIT_SCRIPT_MARKER = "cmdline_attach: unexpected initialization script"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Drive the command-line attach regression test.")
     parser.add_argument("--headless", required=True)
@@ -96,6 +99,13 @@ def main() -> int:
     headless_dir = headless.parent
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
+    # Attaching to an existing process must not run launch initialization
+    # scripts. Configure one and fail if its marker appears in the output.
+    init_script = artifacts_dir / "unexpected-init-script.txt"
+    init_script.write_text(f'log "{INIT_SCRIPT_MARKER}"\n', encoding="utf-8")
+    with (userdir / "headless.ini").open("a", encoding="utf-8") as ini_file:
+        ini_file.write(f"InitializeScript={init_script}\n")
+
     creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if args.no_console_window else 0
     target = subprocess.Popen(
         [str(debuggee)],
@@ -141,13 +151,17 @@ def main() -> int:
                 creationflags=creationflags,
             )
         except subprocess.TimeoutExpired as exc:
-            output = exc.stdout or ""
+            output = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
             (artifacts_dir / "headless.stdout.txt").write_text(output + "\n[TIMEOUT]\n", encoding="utf-8", errors="replace")
             return fail(log_path, "headless_timeout", "headless timed out while attaching with -p")
 
         (artifacts_dir / "headless.stdout.txt").write_text(completed.stdout, encoding="utf-8", errors="replace")
         if completed.returncode != 0:
             return fail(log_path, f"headless_exit_{completed.returncode}", f"headless exited with {completed.returncode}")
+
+        debug_log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
+        if INIT_SCRIPT_MARKER in completed.stdout or INIT_SCRIPT_MARKER in debug_log:
+            return fail(log_path, "init_script_ran", "command-line attach ran the initialization script")
         return 0
     finally:
         stop_target(target)

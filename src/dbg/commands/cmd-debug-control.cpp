@@ -424,11 +424,12 @@ bool cbDebugPause(int argc, char* argv[])
     static ULONGLONG lastPauseRequestTime = 0;
     static duint lastPauseRequestEventCount = 0;
     auto now = GetTickCount64();
+    auto eventCount = dbggetdbgeventcount();
     auto stuck = lastPauseRequestTime != 0
                  && now - lastPauseRequestTime >= 2000
-                 && dbggetdbgeventcount() == lastPauseRequestEventCount;
+                 && eventCount == lastPauseRequestEventCount;
     lastPauseRequestTime = now;
-    lastPauseRequestEventCount = dbggetdbgeventcount();
+    lastPauseRequestEventCount = eventCount;
     if(stuck && dbgspawnbreakinthread())
         return true;
     // After attaching, the active thread is whatever thread reported the last

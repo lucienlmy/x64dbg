@@ -87,6 +87,12 @@ def path_arg(path: Path, cwd: Path) -> str:
         return str(path)
 
 
+def timeout_output(output: str | bytes | None) -> str:
+    if isinstance(output, bytes):
+        return output.decode("utf-8", errors="replace")
+    return output or ""
+
+
 def parse_test_variant(script_name: str) -> str | None:
     if not script_name.startswith("test") or not script_name.endswith(".txt"):
         return None
@@ -305,7 +311,7 @@ def run_driver_test(headless: Path, test: TestCase, timeout: int, artifact_dir: 
         )
         stdout_path.write_text(completed.stdout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired as exc:
-        stdout_path.write_text((exc.stdout or "") + "\n[DRIVER TIMEOUT]\n", encoding="utf-8", errors="replace")
+        stdout_path.write_text(timeout_output(exc.stdout) + "\n[DRIVER TIMEOUT]\n", encoding="utf-8", errors="replace")
         return TestResult(test.rel, False, "driver_timeout", None, None, artifact_dir)
 
     passed, asserts, reason = parse_final_line(log_path)
@@ -369,7 +375,7 @@ def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, 
         )
         stdout_path.write_text(completed.stdout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired as exc:
-        stdout_path.write_text((exc.stdout or "") + "\n[TIMEOUT]\n", encoding="utf-8", errors="replace")
+        stdout_path.write_text(timeout_output(exc.stdout) + "\n[TIMEOUT]\n", encoding="utf-8", errors="replace")
         return TestResult(test.rel, False, "timeout", None, None, artifact_dir)
 
     passed, asserts, reason = parse_final_line(log_path)

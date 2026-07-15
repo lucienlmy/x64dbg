@@ -52,8 +52,11 @@ static bool bRepeatIn = false;
 static duint stepRepeat = 0;
 static bool bIsAttached = false;
 static bool bPauseAtAttach = false;
-static DWORD dwAttachMainThread = 0;
-static bool bBreakInExpected = false;
+static INIT_STRUCT* activeDebugLoopInit = nullptr;
+static std::atomic<DWORD> dwAttachMainThread{ 0 };
+static std::atomic_bool bBreakInExpected{ false };
+static std::atomic<DWORD> dwBreakInThreadId{ 0 };
+static std::atomic<duint> breakInThreadStartAddress{ 0 };
 static volatile long DbgEventsTotal = 0;
 static bool bSkipExceptions = false;
 static duint skipExceptionCount = 0;
@@ -347,6 +350,18 @@ void dbgsetattachevent(HANDLE handle)
     hEvent = handle;
 }
 
+static void signalDebugLoopStarted()
+{
+    auto init = activeDebugLoopInit;
+    activeDebugLoopInit = nullptr;
+    if(init && init->event)
+    {
+        auto event = init->event;
+        init->event = nullptr;
+        SetEvent(event);
+    }
+}
+
 DWORD dbggetattachmainthread()
 {
     return dwAttachMainThread;
@@ -359,17 +374,32 @@ void dbgclearattachmainthread()
 
 duint dbggetdbgeventcount()
 {
-    return (duint)DbgEventsTotal;
+    return (duint)InterlockedCompareExchange(&DbgEventsTotal, 0, 0);
+}
+
+static duint getBreakInThreadStartAddress()
+{
+    auto localNtdll = GetModuleHandleW(L"ntdll.dll");
+    auto localStart = localNtdll ? GetProcAddress(localNtdll, "DbgUiRemoteBreakin") : nullptr;
+    auto remoteNtdll = ModBaseFromName("ntdll.dll");
+    if(!localStart || !remoteNtdll)
+        return 0;
+    return remoteNtdll + (duint)localStart - (duint)localNtdll;
 }
 
 bool dbgspawnbreakinthread()
 {
-    // Set the expectation before creating the thread, because the breakpoint
-    // event can arrive before DebugBreakProcess returns.
-    bBreakInExpected = true;
+    if(bBreakInExpected.exchange(true))
+        return true;
+
+    // Record the remote entry point before creating the thread, because its
+    // debug events can arrive before DebugBreakProcess returns.
+    breakInThreadStartAddress = getBreakInThreadStartAddress();
+    dwBreakInThreadId = 0;
     if(!DebugBreakProcess(fdProcessInfo->hProcess))
     {
         bBreakInExpected = false;
+        breakInThreadStartAddress = 0;
         dputs(QT_TRANSLATE_NOOP("DBG", "Failed to create a break-in thread (DebugBreakProcess)"));
         return false;
     }
@@ -1706,6 +1736,10 @@ static void cbExitProcess(EXIT_PROCESS_DEBUG_INFO* ExitProcess)
 
 static void cbCreateThread(CREATE_THREAD_DEBUG_INFO* CreateThread)
 {
+    if(bBreakInExpected && breakInThreadStartAddress != 0 &&
+            (duint)CreateThread->lpStartAddress == breakInThreadStartAddress)
+        dwBreakInThreadId = GetDebugData()->dwThreadId;
+
     ThreadCreate(CreateThread); //update thread list
     DWORD dwThreadId = GetDebugData()->dwThreadId;
     hActiveThread = ThreadGetHandle(dwThreadId);
@@ -1784,6 +1818,12 @@ static void cbExitThread(EXIT_THREAD_DEBUG_INFO* ExitThread)
             dputs(QT_TRANSLATE_NOOP("DBG", "No threads left to switch to (bug?)"));
     }
     DWORD dwThreadId = GetDebugData()->dwThreadId;
+    if(dwThreadId == dwBreakInThreadId)
+    {
+        bBreakInExpected = false;
+        dwBreakInThreadId = 0;
+        breakInThreadStartAddress = 0;
+    }
     PLUG_CB_EXITTHREAD callbackInfo;
     callbackInfo.ExitThread = ExitThread;
     callbackInfo.dwThreadId = dwThreadId;
@@ -1828,22 +1868,40 @@ static void startInitializationScriptThread()
     CloseHandle(CreateThread(NULL, 0, cbInitializationScriptThread, NULL, 0, NULL));
 }
 
-static void waitAtDebugEvent(bool pause)
+static void prepareToWaitAtDebugEvent(bool pause)
 {
-    // Allow the user to run a script file now.
+    // Allow scripts and commands to resume the debug loop through WAITID_RUN.
     lock(WAITID_RUN);
     if(pause)
-    {
-        //lock
         GuiSetDebugStateAsync(paused);
-        // Plugin callback
-        PLUG_CB_PAUSEDEBUG pauseInfo = { nullptr };
-        plugincbcall(CB_PAUSEDEBUG, &pauseInfo);
-        dbgsetforeground();
-    }
+}
+
+static void notifyDebugPaused()
+{
+    PLUG_CB_PAUSEDEBUG pauseInfo = { nullptr };
+    plugincbcall(CB_PAUSEDEBUG, &pauseInfo);
+    dbgsetforeground();
+}
+
+static void waitAtSystemBreakpoint(bool pause)
+{
+    prepareToWaitAtDebugEvent(pause);
+    if(pause)
+        notifyDebugPaused();
     startInitializationScriptThread();
     if(!pause)
         unlock(WAITID_RUN);
+    wait(WAITID_RUN);
+}
+
+static void waitAtAttach()
+{
+    prepareToWaitAtDebugEvent(true);
+
+    // The attach command may now return: the process handle and thread list
+    // are initialized, and WAITID_RUN is locked before the next script runs.
+    signalDebugLoopStarted();
+    notifyDebugPaused();
     wait(WAITID_RUN);
 }
 
@@ -1877,7 +1935,7 @@ static void cbSystemBreakpoint(const void* ExceptionData) // TODO: System breakp
         dputs(QT_TRANSLATE_NOOP("DBG", "It has been detected that the debuggee entry point is in the MZ header of the executable. This will cause strange behavior, so the system breakpoint has been enabled regardless of your setting. Be careful!"));
         systemBreakpoint = true;
     }
-    waitAtDebugEvent(systemBreakpoint);
+    waitAtSystemBreakpoint(systemBreakpoint);
 }
 
 static void cbLoadDll(LOAD_DLL_DEBUG_INFO* LoadDll)
@@ -2170,11 +2228,15 @@ static void cbException(EXCEPTION_DEBUG_INFO* ExceptionData)
     GuiSetLastException(ExceptionCode);
     lastExceptionInfo = *ExceptionData;
 
-    if(bBreakInExpected && ExceptionCode == EXCEPTION_BREAKPOINT && ExceptionData->dwFirstChance)
+    if(bBreakInExpected && dwBreakInThreadId != 0 &&
+            GetDebugData()->dwThreadId == dwBreakInThreadId &&
+            ExceptionCode == EXCEPTION_BREAKPOINT && ExceptionData->dwFirstChance)
     {
-        // The pause command spawned a break-in thread, treat its breakpoint
-        // as a pause instead of a debuggee exception.
+        // The pause command spawned this thread. Treat its breakpoint as a
+        // pause instead of consuming an unrelated debuggee breakpoint.
         bBreakInExpected = false;
+        dwBreakInThreadId = 0;
+        breakInThreadStartAddress = 0;
         dbgsetcontinuestatus(DBG_CONTINUE);
         dputs(QT_TRANSLATE_NOOP("DBG", "paused!"));
         auto CIP = GetContextDataEx(hActiveThread, UE_CIP);
@@ -2384,7 +2446,17 @@ static void cbAttachDebugger()
     // the pause command can target a thread that actually executes.
     dwAttachMainThread = getMainThreadId(fdProcessInfo->dwProcessId);
     if(dwAttachMainThread)
-        fdProcessInfo->dwThreadId = dwAttachMainThread; //TitanEngine leaves this at zero when attaching
+    {
+        auto hMainThread = ThreadGetHandle(dwAttachMainThread);
+        if(hMainThread)
+        {
+            // TitanEngine leaves the thread id at zero on some attach paths.
+            fdProcessInfo->dwThreadId = dwAttachMainThread;
+            hActiveThread = hMainThread;
+        }
+        else
+            dwAttachMainThread = 0;
+    }
 
     //Get on top of things
     SetForegroundWindow(GuiGetWindowHandle());
@@ -2401,11 +2473,7 @@ static void cbAttachDebugger()
     dbgsetskipexceptions(false); //we are not skipping first-chance exceptions
 
     if(bPauseAtAttach)
-    {
-        // Script-driven attach needs a stable debug context before the attach command returns.
-        // The debuggee is stopped by a pending CREATE_PROCESS_DEBUG_EVENT until WAITID_RUN is unlocked.
-        waitAtDebugEvent(true);
-    }
+        waitAtAttach();
 }
 
 cmdline_qoutes_placement_t getqoutesplacement(const char* cmdline)
@@ -2994,10 +3062,13 @@ static PROCESS_INFORMATION* InitDLLDebugW(const wchar_t* szFileName, const wchar
 static void debugLoopFunction(INIT_STRUCT* init)
 {
     //initialize variables
+    activeDebugLoopInit = init;
     bIsAttached = init->attach;
     bPauseAtAttach = init->attach && init->pauseAtAttach;
     dwAttachMainThread = 0;
     bBreakInExpected = false;
+    dwBreakInThreadId = 0;
+    breakInThreadStartAddress = 0;
     dbgsetskipexceptions(false);
     bFreezeStack = false;
 
@@ -3115,9 +3186,10 @@ static void debugLoopFunction(INIT_STRUCT* init)
         gInitDir.clear();
     }
 
-    // signal that fdProcessInfo has been set
-    SetEvent(init->event);
-    init->event = nullptr;
+    // Script-driven attach must not return until its callback has initialized
+    // the process handle and thread list and locked WAITID_RUN.
+    if(!bPauseAtAttach)
+        signalDebugLoopStarted();
 
     //set custom handlers
     SetCustomHandler(UE_CH_CREATEPROCESS, (TITANCALLBACKARG)cbCreateProcess);
@@ -3211,6 +3283,8 @@ static void debugLoopFunction(INIT_STRUCT* init)
     bPauseAtAttach = false;
     dwAttachMainThread = 0;
     bBreakInExpected = false;
+    dwBreakInThreadId = 0;
+    breakInThreadStartAddress = 0;
     GuiSetDebugState(stopped);
     GuiUpdateAllViews();
     dputs(QT_TRANSLATE_NOOP("DBG", "Debugging stopped!"));
@@ -3282,15 +3356,18 @@ void dbgcreatedebugthread(INIT_STRUCT* init)
         debugLoopFunction(init);
         bIsDebugging = false;
 
-        // Set the event in case debugLoopFunction returned early to prevent a deadlock
-        if(init->event)
-        {
-            SetEvent(init->event);
-            init->event = nullptr;
-        }
-
+        // Signal in case debugLoopFunction returned before normal startup.
+        signalDebugLoopStarted();
+        activeDebugLoopInit = nullptr;
         return 0;
     }, init, 0, nullptr);
+    if(!hDebugLoopThread)
+    {
+        init->event = nullptr;
+        CloseHandle(event);
+        dputs(QT_TRANSLATE_NOOP("DBG", "Failed to create the debug loop thread"));
+        return;
+    }
     WaitForSingleObject(event, INFINITE);
     CloseHandle(event);
 }

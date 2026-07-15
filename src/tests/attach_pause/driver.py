@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -41,6 +42,17 @@ def append_log(log_path: Path, text: str) -> None:
         log_file.write(text)
         if not text.endswith("\n"):
             log_file.write("\n")
+
+
+def wait_for_ready(process: subprocess.Popen[str], timeout: float) -> str | None:
+    assert process.stdout is not None
+    lines: queue.Queue[str] = queue.Queue(maxsize=1)
+    threading.Thread(target=lambda: lines.put(process.stdout.readline()), daemon=True).start()
+    try:
+        line = lines.get(timeout=timeout)
+    except queue.Empty:
+        return None
+    return line.strip() if line else None
 
 
 class Headless:
@@ -152,9 +164,8 @@ def main() -> int:
     headless: Headless | None = None
     main_tid = 0
     try:
-        assert target.stdout is not None
-        ready_line = target.stdout.readline().strip()
-        if not ready_line.startswith("ready "):
+        ready_line = wait_for_ready(target, timeout=10)
+        if not ready_line or not ready_line.startswith("ready "):
             return fail("target_not_ready", f"target did not print a ready line: {ready_line!r}")
         pid, main_tid = (int(part) for part in ready_line.split()[1:3])
 
