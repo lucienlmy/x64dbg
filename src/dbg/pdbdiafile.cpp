@@ -1056,6 +1056,7 @@ bool PDBDiaFile::convertSymbolInfo(IDiaSymbol* symbol, DiaSymbol_t & symbolInfo,
     symbolInfo.virtualAddress = -1;
     symbolInfo.perfectSize = false;
     symbolInfo.publicSymbol = false;
+    symbolInfo.function = false;
 
     hr = symbol->get_symTag(&symTagType);
     if(hr != S_OK)
@@ -1111,11 +1112,17 @@ bool PDBDiaFile::convertSymbolInfo(IDiaSymbol* symbol, DiaSymbol_t & symbolInfo,
     switch(symTagType)
     {
     case SymTagPublicSymbol:
+    {
         symbolInfo.type = DiaSymbolType::PUBLIC;
         symbolInfo.publicSymbol = true;
+        BOOL isFunction = FALSE;
+        if(symbol->get_function(&isFunction) == S_OK)
+            symbolInfo.function = isFunction != FALSE;
         break;
+    }
     case SymTagFunction:
         symbolInfo.type = DiaSymbolType::FUNCTION;
+        symbolInfo.function = true;
         break;
     case SymTagData:
         symbolInfo.type = DiaSymbolType::DATA;

@@ -1566,15 +1566,17 @@ duint ModFunctionEntryGuessFromAddr(duint Address)
 #ifdef _WIN64
     // Try RUNTIME_FUNCTION first (most reliable on x64)
     auto runtimeFunction = info->findRuntimeFunction(rva);
-    if(runtimeFunction && runtimeFunction->BeginAddress < rva)
+    if(runtimeFunction)
         return info->base + runtimeFunction->BeginAddress;
 #endif
 
-    // Fall back to PDB symbols
+    // Fall back to PDB symbols. Exact matches must be functions; lower
+    // matches retain the existing heuristic behavior.
     if(info->symbols && info->symbols->isOpen())
     {
         SymbolInfo symInfo;
-        if(info->symbols->findSymbolExactOrLower(rva, symInfo) && symInfo.rva < rva)
+        if(info->symbols->findSymbolExactOrLower(rva, symInfo) &&
+                (symInfo.rva < rva || symInfo.functionSymbol))
             return info->base + symInfo.rva;
     }
 
