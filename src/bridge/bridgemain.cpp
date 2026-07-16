@@ -671,35 +671,35 @@ BRIDGE_IMPEXP void DbgClearCommentRange(duint start, duint end)
     _dbg_sendmessage(DBG_DELETE_COMMENT_RANGE, (void*)start, (void*)end);
 }
 
-BRIDGE_IMPEXP bool DbgGetLineColorAt(duint addr, unsigned int* color)
+BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* color)
 {
     if(!color || !addr)
         return false;
     BRIDGE_ADDRINFO info;
     memset(&info, 0, sizeof(info));
-    info.flags = flaglinecolor;
+    info.flags = flagaddresscolor;
     if(!_dbg_addrinfoget(addr, SEG_DEFAULT, &info))
         return false;
     *color = info.color;
     return true;
 }
 
-BRIDGE_IMPEXP bool DbgSetLineColorAt(duint addr, unsigned int color)
+BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int color)
 {
     if(!addr)
         return false;
     BRIDGE_ADDRINFO info;
     memset(&info, 0, sizeof(info));
-    info.flags = flaglinecolor;
+    info.flags = flagaddresscolor;
     info.color = color;
     if(!_dbg_addrinfoset(addr, &info))
         return false;
     return true;
 }
 
-BRIDGE_IMPEXP void DbgDelLineColorRange(duint start, duint end)
+BRIDGE_IMPEXP void DbgDelAddressColorRange(duint start, duint end)
 {
-    _dbg_sendmessage(DBG_DELETE_LINECOLOR_RANGE, (void*)start, (void*)end);
+    _dbg_sendmessage(DBG_DELETE_ADDRESSCOLOR_RANGE, (void*)start, (void*)end);
 }
 
 // FIXME required size of arg _text_?

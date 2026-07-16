@@ -233,7 +233,7 @@ typedef enum
     flagloop = 0x20,
     flagargs = 0x40,
     flagNoFuncOffset = 0x80,
-    flaglinecolor = 0x100
+    flagaddresscolor = 0x100,
 } ADDRINFOFLAGS;
 
 typedef enum
@@ -333,7 +333,6 @@ typedef enum
     DBG_SYMBOL_ENUM_FROMCACHE,      // param1=SYMBOLCBINFO* cbInfo,      param2=unused
     DBG_DELETE_COMMENT_RANGE,       // param1=duint start,               param2=duint end
     DBG_DELETE_LABEL_RANGE,         // param1=duint start,               param2=duint end
-    DBG_DELETE_LINECOLOR_RANGE,     // param1=duint start,               param2=duint end
     DBG_DELETE_BOOKMARK_RANGE,      // param1=duint start,               param2=duint end
     DBG_GET_XREF_COUNT_AT,          // param1=duint addr,                param2=unused
     DBG_GET_XREF_TYPE_AT,           // param1=duint addr,                param2=unused
@@ -367,6 +366,7 @@ typedef enum
     DBG_TYPE_VISIT,                 // param1=TYPEVISITDATA* data,       param2=unused
     DBG_UPDATE_GUI,                 // param1=disasm_addr,               param2=bool stack
     DBG_IS_TESTING,                 // param1=unused,                    param2=unused
+    DBG_DELETE_ADDRESSCOLOR_RANGE,  // param1=duint start,               param2=duint end
 } DBGMSG;
 
 typedef enum
@@ -1247,18 +1247,18 @@ BRIDGE_IMPEXP duint DbgXrefAddMulti(const XREF_EDGE* edges, duint count);
 BRIDGE_IMPEXP void DbgUpdateGui(duint disasm_addr, bool stack);
 typedef enum
 {
-    linecolor_none = 0,
-    linecolor_red,
-    linecolor_green,
-    linecolor_blue,
-    linecolor_yellow,
-    linecolor_orange,
-    linecolor_purple,
-} LINECOLORPRESET;
+    addresscolor_none = 0,
+    addresscolor_red,
+    addresscolor_green,
+    addresscolor_blue,
+    addresscolor_yellow,
+    addresscolor_orange,
+    addresscolor_purple,
+} ADDRESSCOLORPRESET;
 
-BRIDGE_IMPEXP bool DbgGetLineColorAt(duint addr, unsigned int* preset);
-BRIDGE_IMPEXP bool DbgSetLineColorAt(duint addr, unsigned int preset);
-BRIDGE_IMPEXP void DbgDelLineColorRange(duint start, duint end);
+BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
+BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int preset);
+BRIDGE_IMPEXP void DbgDelAddressColorRange(duint start, duint end);
 
 typedef enum
 {

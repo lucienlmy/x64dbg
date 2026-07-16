@@ -384,7 +384,7 @@ private:
     QColor graphCurrentShadowColor;
     QColor mInstructionHighlightColor;
     QColor mInstructionHighlightBackgroundColor;
-    QColor mLineColorPresets[linecolor_purple + 1];
+    QColor mAddressColorPresets[addresscolor_purple + 1];
 
     BridgeCFGraph currentGraph;
     std::unordered_map<duint, duint> currentBlockMap;

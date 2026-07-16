@@ -12,7 +12,7 @@
 #include "cmd-variables.h"
 #include "cmd-searching.h"
 #include "cmd-user-database.h"
-#include "cmd-linecolor.h"
+#include "cmd-addresscolor.h"
 #include "cmd-analysis.h"
 #include "cmd-types.h"
 #include "cmd-plugins.h"

@@ -96,10 +96,10 @@ public:
     bool followInstruction(duint rva);
 
     //color
-    void setRangeLineColor(duint vaStart, duint vaEnd, LINECOLORPRESET preset);
-    void clearRangeLineColor(duint vaStart, duint vaEnd);
-    void setLineColor(duint va, LINECOLORPRESET preset);
-    void clearLineColor(duint va);
+    void setRangeAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
+    void clearRangeAddressColor(duint vaStart, duint vaEnd);
+    void setAddressColor(duint va, ADDRESSCOLORPRESET preset);
+    void clearAddressColor(duint va);
 signals:
     void selectionChanged(duint va);
     void selectionExpanded();
@@ -246,7 +246,7 @@ protected:
     QColor mLoopColor;
     QColor mFunctionColor;
 
-    QColor mLineColorPresets[linecolor_purple + 1];
+    QColor mAddressColorPresets[addresscolor_purple + 1];
 
     QPen mLoopPen;
     QPen mFunctionPen;

@@ -118,18 +118,18 @@ void Disassembly::updateColors()
     mConditionalJumpLineFalseColor = ConfigColor("DisassemblyConditionalJumpLineFalseColor");
     mLoopColor = ConfigColor("DisassemblyLoopColor");
     mFunctionColor = ConfigColor("DisassemblyFunctionColor");
-    mLineColorPresets[linecolor_none] = Qt::transparent;
-    mLineColorPresets[linecolor_red] = ConfigColor("DisassemblyLineColorRed");
-    mLineColorPresets[linecolor_green] = ConfigColor("DisassemblyLineColorGreen");
-    mLineColorPresets[linecolor_blue] = ConfigColor("DisassemblyLineColorBlue");
-    mLineColorPresets[linecolor_yellow] = ConfigColor("DisassemblyLineColorYellow");
-    mLineColorPresets[linecolor_orange] = ConfigColor("DisassemblyLineColorOrange");
-    mLineColorPresets[linecolor_purple] = ConfigColor("DisassemblyLineColorPurple");
-    duint lineColorAlpha = ConfigUint("Disassembler", "LineColorAlpha");
-    if(lineColorAlpha > 255)
-        lineColorAlpha = 255;
-    for(int i = linecolor_red; i <= linecolor_purple; i++)
-        mLineColorPresets[i].setAlpha(lineColorAlpha);
+    mAddressColorPresets[addresscolor_none] = Qt::transparent;
+    mAddressColorPresets[addresscolor_red] = ConfigColor("DisassemblyAddressColorRed");
+    mAddressColorPresets[addresscolor_green] = ConfigColor("DisassemblyAddressColorGreen");
+    mAddressColorPresets[addresscolor_blue] = ConfigColor("DisassemblyAddressColorBlue");
+    mAddressColorPresets[addresscolor_yellow] = ConfigColor("DisassemblyAddressColorYellow");
+    mAddressColorPresets[addresscolor_orange] = ConfigColor("DisassemblyAddressColorOrange");
+    mAddressColorPresets[addresscolor_purple] = ConfigColor("DisassemblyAddressColorPurple");
+    duint addressColorAlpha = ConfigUint("Disassembler", "AddressColorAlpha");
+    if(addressColorAlpha > 255)
+        addressColorAlpha = 255;
+    for(int i = addresscolor_red; i <= addresscolor_purple; i++)
+        mAddressColorPresets[i].setAlpha(addressColorAlpha);
 
     auto a = mSelectionColor, b = mTracedAddressBackgroundColor;
     mTracedSelectedAddressBackgroundColor = QColor((a.red() + b.red()) / 2, (a.green() + b.green()) / 2, (a.blue() + b.blue()) / 2);
@@ -271,9 +271,9 @@ QString Disassembly::paintContent(QPainter* painter, duint row, duint col, int x
     }
 
     unsigned int linePreset;
-    if(DbgGetLineColorAt(va, &linePreset))
+    if(DbgGetAddressColorAt(va, &linePreset))
     {
-        const QColor & color = mLineColorPresets[linePreset];
+        const QColor & color = mAddressColorPresets[linePreset];
         backgroundColor = QColor(
                               (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
                               (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
@@ -2449,27 +2449,27 @@ int Disassembly::accessibilitySelectedRow() const
     return -1;
 }
 
-void Disassembly::setLineColor(duint va, LINECOLORPRESET preset)
+void Disassembly::setAddressColor(duint va, ADDRESSCOLORPRESET preset)
 {
-    DbgSetLineColorAt(va, preset);
+    DbgSetAddressColorAt(va, preset);
     GuiUpdateDisassemblyView();
 }
 
-void Disassembly::setRangeLineColor(duint vaStart, duint vaEnd, LINECOLORPRESET preset)
+void Disassembly::setRangeAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset)
 {
     for(duint va = vaStart; va <= vaEnd; va++)
-        DbgSetLineColorAt(va, preset);
+        DbgSetAddressColorAt(va, preset);
     GuiUpdateDisassemblyView();
 }
 
-void Disassembly::clearRangeLineColor(duint vaStart, duint vaEnd)
+void Disassembly::clearRangeAddressColor(duint vaStart, duint vaEnd)
 {
-    DbgDelLineColorRange(vaStart, vaEnd);
+    DbgDelAddressColorRange(vaStart, vaEnd);
     GuiUpdateDisassemblyView();
 }
 
-void Disassembly::clearLineColor(duint va)
+void Disassembly::clearAddressColor(duint va)
 {
-    DbgDelLineColorRange(va, va);
+    DbgDelAddressColorRange(va, va);
     GuiUpdateDisassemblyView();
 }

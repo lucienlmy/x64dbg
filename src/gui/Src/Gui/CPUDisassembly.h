@@ -105,8 +105,8 @@ public slots:
     void copyTokenTextSlot();
     void copyTokenValueSlot();
     void downloadCurrentSymbolsSlot();
-    void setLineColorSlot();
-    void clearLineColorSlot();
+    void setAddressColorSlot();
+    void clearAddressColorSlot();
 
 protected:
     void paintEvent(QPaintEvent* event) override;

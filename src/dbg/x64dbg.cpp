@@ -350,10 +350,10 @@ static void registercommands()
     dbgcmdnew("bookmarklist", cbInstrBookmarkList, true); //list bookmarks
     dbgcmdnew("bookmarkclear", cbInstrBookmarkClear, true); //clear bookmarks
 
-    dbgcmdnew("linecolor", cbDebugLineColorSet, true); //line color
-    dbgcmdnew("linecolorrange", cbDebugLineColorSetRange, true); //line color range
-    dbgcmdnew("linecolordel,linecolorclear", cbDebugLineColorDelete, true); //delete line color
-    dbgcmdnew("linecolordelrange,linecolorclearrange", cbDebugLineColorDeleteRange, true); //delete line color range
+    dbgcmdnew("addresscolor", cbDebugAddressColorSet, true); //address color
+    dbgcmdnew("addresscolorrange", cbDebugAddressColorSetRange, true); //address color range
+    dbgcmdnew("addresscolordel,addresscolordelrange", cbDebugAddressColorDelete, true); //delete address color
+    dbgcmdnew("addresscolorclear", cbDebugAddressColorClear, true); //clear all address colors
 
     dbgcmdnew("functionadd,func", cbInstrFunctionAdd, true); //function
     dbgcmdnew("functiondel,funcc", cbInstrFunctionDel, true); //function

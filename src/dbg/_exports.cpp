@@ -38,7 +38,7 @@
 #include "symbolinfo.h"
 #include "typevisitor.h"
 #include "testing.h"
-#include "linecolor.h"
+#include "addresscolor.h"
 
 static bool bOnlyCipAutoComments = false;
 static bool bNoSourceLineAutoComments = false;
@@ -578,10 +578,10 @@ extern "C" DLL_EXPORT bool _dbg_addrinfoget(duint addr, SEGMENTREG segment, BRID
             strncat_s(addrinfo->comment, comment.c_str(), _TRUNCATE);
         }
     }
-    if(addrinfo->flags & flaglinecolor)
+    if(addrinfo->flags & flagaddresscolor)
     {
         duint color;
-        if(LineColorGet(addr, &color))
+        if(AddressColorGet(addr, &color))
         {
             addrinfo->color = (unsigned int)color;
             retval = true;
@@ -616,9 +616,9 @@ extern "C" DLL_EXPORT bool _dbg_addrinfoset(duint addr, BRIDGE_ADDRINFO* addrinf
         else
             retval = BookmarkDelete(addr);
     }
-    if(addrinfo->flags & flaglinecolor) //set line color
+    if(addrinfo->flags & flagaddresscolor) //set address color
     {
-        if(LineColorSet(addr, addrinfo->color, true))
+        if(AddressColorSet(addr, addrinfo->color, true))
             retval = true;
     }
     return retval;
@@ -1373,9 +1373,9 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
     }
     break;
 
-    case DBG_DELETE_LINECOLOR_RANGE:
+    case DBG_DELETE_ADDRESSCOLOR_RANGE:
     {
-        LineColorDelRange((duint)param1, (duint)param2, true);
+        AddressColorDelRange((duint)param1, (duint)param2, true);
     }
     break;
 

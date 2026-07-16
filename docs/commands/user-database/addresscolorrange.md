@@ -1,12 +1,12 @@
-# linecolorrange
+# addresscolorrange
 
-Set the background color of a range of lines in the disassembly view.
+Set the background color for a range of addresses.
 
 ## arguments
 
 `arg1` Start address of the range.
 
-`arg2` End address of the range (inclusive).
+`arg2` End address of the range.
 
 `arg3` Color preset: `red`, `green`, `blue`, `yellow`, `orange`, `purple`. The actual colors can be customized in the Appearance dialog.
 

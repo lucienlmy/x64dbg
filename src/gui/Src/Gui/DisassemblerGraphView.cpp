@@ -383,9 +383,9 @@ void DisassemblerGraphView::paintNormal(QPainter & p, QRect & viewportRect, int 
                         }
 
                         unsigned int linePreset;
-                        if(DbgGetLineColorAt(instr.addr, &linePreset))
+                        if(DbgGetAddressColorAt(instr.addr, &linePreset))
                         {
-                            const QColor & color = mLineColorPresets[linePreset];
+                            const QColor & color = mAddressColorPresets[linePreset];
                             backgroundColor = QColor(
                                                   (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
                                                   (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
@@ -713,9 +713,9 @@ void DisassemblerGraphView::paintZoom(QPainter & p, QRect & viewportRect, int xo
                             }
 
                             unsigned int linePreset;
-                            if(DbgGetLineColorAt(instr.addr, &linePreset))
+                            if(DbgGetAddressColorAt(instr.addr, &linePreset))
                             {
-                                const QColor & color = mLineColorPresets[linePreset];
+                                const QColor & color = mAddressColorPresets[linePreset];
                                 backgroundColor = QColor(
                                                       (backgroundColor.red()   * (255 - color.alpha()) + color.red()   * color.alpha()) / 255,
                                                       (backgroundColor.green() * (255 - color.alpha()) + color.green() * color.alpha()) / 255,
@@ -2452,18 +2452,18 @@ void DisassemblerGraphView::colorsUpdatedSlot()
     mLabelBackgroundColor = ConfigColor("DisassemblyLabelBackgroundColor");
     mAddressColor = ConfigColor("DisassemblyAddressColor");
     mAddressBackgroundColor = ConfigColor("DisassemblyAddressBackgroundColor");
-    mLineColorPresets[linecolor_none] = Qt::transparent;
-    mLineColorPresets[linecolor_red] = ConfigColor("DisassemblyLineColorRed");
-    mLineColorPresets[linecolor_green] = ConfigColor("DisassemblyLineColorGreen");
-    mLineColorPresets[linecolor_blue] = ConfigColor("DisassemblyLineColorBlue");
-    mLineColorPresets[linecolor_yellow] = ConfigColor("DisassemblyLineColorYellow");
-    mLineColorPresets[linecolor_orange] = ConfigColor("DisassemblyLineColorOrange");
-    mLineColorPresets[linecolor_purple] = ConfigColor("DisassemblyLineColorPurple");
-    duint lineColorAlpha = ConfigUint("Disassembler", "LineColorAlpha");
-    if(lineColorAlpha > 255)
-        lineColorAlpha = 255;
-    for(int i = linecolor_red; i <= linecolor_purple; i++)
-        mLineColorPresets[i].setAlpha(lineColorAlpha);
+    mAddressColorPresets[addresscolor_none] = Qt::transparent;
+    mAddressColorPresets[addresscolor_red] = ConfigColor("DisassemblyAddressColorRed");
+    mAddressColorPresets[addresscolor_green] = ConfigColor("DisassemblyAddressColorGreen");
+    mAddressColorPresets[addresscolor_blue] = ConfigColor("DisassemblyAddressColorBlue");
+    mAddressColorPresets[addresscolor_yellow] = ConfigColor("DisassemblyAddressColorYellow");
+    mAddressColorPresets[addresscolor_orange] = ConfigColor("DisassemblyAddressColorOrange");
+    mAddressColorPresets[addresscolor_purple] = ConfigColor("DisassemblyAddressColorPurple");
+    duint addressColorAlpha = ConfigUint("Disassembler", "AddressColorAlpha");
+    if(addressColorAlpha > 255)
+        addressColorAlpha = 255;
+    for(int i = addresscolor_red; i <= addresscolor_purple; i++)
+        mAddressColorPresets[i].setAlpha(addressColorAlpha);
 
     jmpColor = ConfigColor("GraphJmpColor");
     brtrueColor = ConfigColor("GraphBrtrueColor");
