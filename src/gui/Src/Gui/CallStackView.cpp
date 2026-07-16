@@ -315,15 +315,21 @@ void CallStackView::contextMenuSlot(const QPoint pos)
 void CallStackView::followAddressSlot()
 {
     QString addrText = getCellContent(getInitialSelection(), ColAddress);
-    DbgCmdExecDirect(QString("sdump " + addrText));
-    switchThread();
+    if(!addrText.isEmpty() && isSelectionValid())
+    {
+        switchThread();
+        DbgCmdExecDirect(QString("sdump " + addrText));
+    }
 }
 
 void CallStackView::followToSlot()
 {
     QString addrText = getCellContent(getInitialSelection(), ColTo);
-    DbgCmdExecDirect(QString("disasm " + addrText));
-    switchThread();
+    if(!addrText.isEmpty() && isSelectionValid())
+    {
+        switchThread();
+        DbgCmdExecDirect(QString("disasm " + addrText));
+    }
 }
 
 void CallStackView::followFromSlot()
@@ -332,8 +338,8 @@ void CallStackView::followFromSlot()
     // Double click signal is recieved by this as well, so we must check again.
     if(!addrText.isEmpty() && isSelectionValid())
     {
-        DbgCmdExecDirect(QString("disasm " + addrText));
         switchThread();
+        DbgCmdExecDirect(QString("disasm " + addrText));
     }
 }
 
@@ -468,11 +474,9 @@ duint CallStackView::getSelectionVa()
         return 0;
 }
 
-// Switch to the new thread if it is not the current thread
+// Switch to the selected thread if needed
 void CallStackView::switchThread()
 {
-    DWORD currentThread = DbgGetThreadId();
     DWORD newThread = getCellUserdata(getInitialSelection(), ColThread);
-    if(currentThread != newThread)
-        DbgCmdExecDirect(QString("switchthread %1").arg(ToHexString(newThread)).toUtf8().constData());
+    DbgCmdExecDirect(QString("switchthread %1, quiet").arg(ToHexString(newThread)).toUtf8().constData());
 }

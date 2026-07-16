@@ -859,6 +859,11 @@ ScriptCommandOutcome ScriptCmdExecAwait(const char* command, bool gui, const SCR
     });
 }
 
+bool ScriptIsExecutingCommand()
+{
+    return scriptQueue.on_worker_thread();
+}
+
 void ScriptSetIpAwait(int line)
 {
     scriptQueue.await([line]()
