@@ -387,7 +387,7 @@ QString withDateTimeSuffix(const QString & path)
 {
     QString result = path;
     auto extensionIdx = result.lastIndexOf('.');
-    if (extensionIdx == -1)
+    if(extensionIdx == -1)
     {
         extensionIdx = result.length();
     }
@@ -427,7 +427,7 @@ QString mainModulePath()
     auto base = DbgEval("mod.main()");
     char name[MAX_MODULE_SIZE] = "";
     char path[MAX_MODULE_SIZE] = "";
-    if (base && DbgFunctions()->ModNameFromAddr(base, name, false) && DbgFunctions()->ModPathFromName(name, path, MAX_MODULE_SIZE))
+    if(base && DbgFunctions()->ModNameFromAddr(base, name, false) && DbgFunctions()->ModPathFromName(name, path, MAX_MODULE_SIZE))
     {
         return path;
     }
@@ -437,12 +437,12 @@ QString mainModulePath()
 QString getProgramPath(const QString & filename, bool addDateTimeSuffix)
 {
     auto path = QFileInfo(mainModulePath()).dir().path();
-    if (!filename.isEmpty())
+    if(!filename.isEmpty())
     {
         path += '/';
         path += filename;
         // Add a date suffix before the extension
-        if (addDateTimeSuffix)
+        if(addDateTimeSuffix)
         {
             path = withDateTimeSuffix(path);
         }
