@@ -10,6 +10,8 @@ extern "C"
     __declspec(allocate(".mbd3")) __declspec(dllexport) volatile signed char WriteTarget = 0;
     __declspec(allocate(".mbd3")) __declspec(dllexport) volatile unsigned char* HeapPointer = nullptr;
     __declspec(allocate(".mbd3")) __declspec(dllexport) volatile unsigned char* CrossPagePointer = nullptr;
+    __declspec(allocate(".mbd3")) __declspec(dllexport) volatile unsigned char* AdjacentPointer = nullptr;
+    __declspec(allocate(".mbd3")) __declspec(dllexport) volatile unsigned char* LargePointer = nullptr;
     __declspec(allocate(".mbd3")) __declspec(dllexport) volatile LONG ExecCounter = 0;
     __declspec(allocate(".mbd3")) __declspec(dllexport) volatile DWORD StartMode = 0;
 
@@ -62,6 +64,26 @@ extern "C"
         const auto value = static_cast<unsigned char>(ReadTarget);
         WriteTarget = 0x5A;
         ExitProcess(static_cast<UINT>(value + static_cast<unsigned char>(WriteTarget)));
+    }
+
+    __declspec(dllexport) __declspec(noinline) void ReadTwoTargetsSequence()
+    {
+        const auto first = static_cast<unsigned char>(ReadTarget);
+        const auto second = static_cast<unsigned char>(WriteTarget);
+        ExitProcess(static_cast<UINT>(first + second));
+    }
+
+    __declspec(dllexport) __declspec(noinline) void WriteReadTargetSequence()
+    {
+        ReadTarget = 0x5A;
+        ExitProcess(0x5A);
+    }
+
+    __declspec(dllexport) __declspec(noinline) void WriteTwoTargetsSequence()
+    {
+        ReadTarget = 0x5A;
+        WriteTarget = 0x4B;
+        ExitProcess(0xA5);
     }
 
     __declspec(dllexport) __declspec(noinline) void StressAccessSequence()
@@ -149,7 +171,7 @@ extern "C"
     {
         CrossPagePointer[0xFFF] = 0xAA;
         CrossPagePointer[0x1000] = 0x55;
-        ExitProcess(static_cast<UINT>(CrossPagePointer[0xFFF] + CrossPagePointer[0x1000]));
+        ExitProcess(0xFF);
     }
 
     __declspec(dllexport) __declspec(noinline) void StartCrossPageWrite()
@@ -160,6 +182,52 @@ extern "C"
         CrossPagePointer[0xFFF] = 0;
         CrossPagePointer[0x1000] = 0;
         CrossPageWriteSequence();
+    }
+
+    __declspec(dllexport) __declspec(noinline) void AdjacentReadSequence()
+    {
+        const auto first = AdjacentPointer[0xFFFF];
+        const auto second = AdjacentPointer[0x10000];
+        ExitProcess(static_cast<UINT>(first + second));
+    }
+
+    __declspec(dllexport) __declspec(noinline) void StartAdjacentRead()
+    {
+        // Reserve and release one contiguous area, then reserve each 64 KiB half
+        // separately. The resulting pages are adjacent but have different
+        // AllocationBase values, so a single VirtualProtectEx cannot span them.
+        auto reservation = (unsigned char*)VirtualAlloc(nullptr, 0x20000, MEM_RESERVE, PAGE_NOACCESS);
+        if(reservation == nullptr || !VirtualFree(reservation, 0, MEM_RELEASE))
+            ExitProcess(0xE5);
+
+        auto first = (unsigned char*)VirtualAlloc(reservation, 0x10000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        auto second = (unsigned char*)VirtualAlloc(reservation + 0x10000, 0x10000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if(first != reservation || second != reservation + 0x10000)
+            ExitProcess(0xE6);
+
+        AdjacentPointer = first;
+        AdjacentPointer[0xFFFF] = 0x21;
+        AdjacentPointer[0x10000] = 0x43;
+        AdjacentReadSequence();
+    }
+
+    __declspec(dllexport) __declspec(noinline) void LargeRangeSequence()
+    {
+        const auto first = LargePointer[0];
+        const auto last = LargePointer[0x8000000 - 1];
+        ExitProcess(static_cast<UINT>(first + last));
+    }
+
+    __declspec(dllexport) __declspec(noinline) void StartLargeRange()
+    {
+        // 32K pages reproduces the large-range setup that originally exposed the
+        // publish-before-metadata race and makes per-page syscall regressions visible.
+        LargePointer = (unsigned char*)VirtualAlloc(nullptr, 0x8000000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if(LargePointer == nullptr)
+            ExitProcess(0xE7);
+        LargePointer[0] = 0x31;
+        LargePointer[0x8000000 - 1] = 0x37;
+        LargeRangeSequence();
     }
 
     __declspec(noinline) void start()
@@ -204,6 +272,21 @@ extern "C"
         case 12:
         case 0x12:
             StressAccessSequence();
+            break;
+        case 0x13:
+            ReadTwoTargetsSequence();
+            break;
+        case 0x14:
+            WriteReadTargetSequence();
+            break;
+        case 0x16:
+            WriteTwoTargetsSequence();
+            break;
+        case 0x15:
+            StartAdjacentRead();
+            break;
+        case 0x30:
+            StartLargeRange();
             break;
         default:
             break;
