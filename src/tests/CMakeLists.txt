@@ -174,6 +174,7 @@ set(X64DBG_STANDARD_TESTS
     issue3803
     issue3808
     issue3865
+    cmdline_attach
     cmdline_init
     cmdline_setcommandline
     guard_page
@@ -186,6 +187,11 @@ set(X64DBG_STANDARD_TESTS
 foreach(test_name IN LISTS X64DBG_STANDARD_TESTS)
     x64dbg_add_test(NAME "${test_name}")
 endforeach()
+
+x64dbg_add_test(
+    NAME attach_pause
+    TARGET_LINK_LIBRARIES user32
+)
 
 x64dbg_add_membp_test()
 

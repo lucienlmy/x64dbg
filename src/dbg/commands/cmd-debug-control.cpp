@@ -16,6 +16,7 @@
 #include "database.h"
 #include "exception.h"
 #include "stringformat.h"
+#include "simplescript.h"
 
 static bool isInt3Exception()
 {
@@ -329,6 +330,7 @@ bool cbDebugAttach(int argc, char* argv[])
     static INIT_STRUCT init;
     init.attach = true;
     init.pid = (DWORD)pid;
+    init.pauseAtAttach = ScriptIsExecutingCommand();
     dbgcreatedebugthread(&init);
     return true;
 }
@@ -414,11 +416,36 @@ bool cbDebugPause(int argc, char* argv[])
         dputs(QT_TRANSLATE_NOOP("DBG", "Program is not running"));
         return false;
     }
-    // NOTE: As soon as SetBPX plants the INT3, another thread can hit it and the
-    // breakpoint callback will reassign the global hActiveThread. Operate on a local
-    // copy so the SuspendThread/ResumeThread pair always targets the same thread.
+    // If the previous pause request could not break the debuggee and no debug
+    // events happened since, the debuggee is stuck in a wait that the code
+    // below cannot interrupt. Requesting a pause again after a few seconds
+    // falls back to a break-in thread. This is not done right away because the
+    // extra thread can be used by the debuggee to detect the debugger.
+    static ULONGLONG lastPauseRequestTime = 0;
+    static duint lastPauseRequestEventCount = 0;
+    auto now = GetTickCount64();
+    auto eventCount = dbggetdbgeventcount();
+    auto stuck = lastPauseRequestTime != 0
+                 && now - lastPauseRequestTime >= 2000
+                 && eventCount == lastPauseRequestEventCount;
+    lastPauseRequestTime = now;
+    lastPauseRequestEventCount = eventCount;
+    if(stuck && dbgspawnbreakinthread())
+        return true;
+    // After attaching, the active thread is whatever thread reported the last
+    // attach event (usually an idle worker that never wakes up). Target the
+    // main thread instead until a real debug event selects an active thread.
     HANDLE hPauseThread = hActiveThread;
-    DWORD dwPauseThreadId = GetDebugData()->dwThreadId;
+    if(auto mainThreadId = dbggetattachmainthread())
+    {
+        auto hMainThread = ThreadGetHandle(mainThreadId);
+        if(hMainThread)
+            hPauseThread = hMainThread;
+    }
+    // As soon as SetBPX plants the INT3, another thread can hit it and the
+    // breakpoint callback can reassign hActiveThread. Keep using this local
+    // handle so SuspendThread and ResumeThread target the same thread.
+    DWORD dwPauseThreadId = GetThreadId(hPauseThread);
     // TODO: get suspend count instead, this can be detected
     // Interesting behavior found by JustMagic, if the active thread is suspended pause would fail
     auto previousSuspendCount = SuspendThread(hPauseThread);

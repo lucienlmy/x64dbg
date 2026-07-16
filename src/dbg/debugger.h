@@ -41,6 +41,7 @@ struct INIT_STRUCT
     uint32_t entryPointRva = 0;
     DWORD pid = 0;
     bool attach = false;
+    bool pauseAtAttach = false;
     bool isDll = false;
 };
 
@@ -77,6 +78,10 @@ bool dbgisrunning();
 bool dbgisdebugging();
 bool dbgisdll();
 void dbgsetattachevent(HANDLE handle);
+DWORD dbggetattachmainthread();
+void dbgclearattachmainthread();
+duint dbggetdbgeventcount();
+bool dbgspawnbreakinthread();
 void dbgsetresumetid(duint tid);
 void DebugUpdateGui(duint disasm_addr, bool stack);
 void DebugUpdateGuiAsync(duint disasm_addr, bool stack);
