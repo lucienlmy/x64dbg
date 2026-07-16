@@ -634,7 +634,7 @@
     <string>Preferences</string>
    </property>
    <property name="statusTip">
-    <string>Opem the Preferences dialog.</string>
+    <string>Open the Preferences dialog.</string>
    </property>
   </action>
   <action name="actionStrings">
