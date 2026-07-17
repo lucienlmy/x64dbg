@@ -746,6 +746,16 @@ void RegistersView::InitMappings()
     mRegisterRelativePlaces.insert(DR7, Register_Relative_Position(DR6, UNKNOWN));
 
     mRowsNeeded = offset + 1;
+
+    // Discard updates for registers that are no longer mapped: the loop in setRegisters() only
+    // visits keys present in mRegisterMapping and cannot drop them once the register set shrinks.
+    for(auto it = mRegisterUpdates.begin(); it != mRegisterUpdates.end();)
+    {
+        if(!mRegisterMapping.contains(*it))
+            it = mRegisterUpdates.erase(it);
+        else
+            ++it;
+    }
 }
 
 RegistersView::REGDUMP_EXTENDED RegistersView::expandContext(const REGDUMP* reg)
