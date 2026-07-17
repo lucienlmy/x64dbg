@@ -119,12 +119,12 @@ void Disassembly::updateColors()
     mLoopColor = ConfigColor("DisassemblyLoopColor");
     mFunctionColor = ConfigColor("DisassemblyFunctionColor");
     mAddressColorPresets[addresscolor_none] = Qt::transparent;
-    mAddressColorPresets[addresscolor_red] = ConfigColor("DisassemblyAddressColorRed");
-    mAddressColorPresets[addresscolor_green] = ConfigColor("DisassemblyAddressColorGreen");
-    mAddressColorPresets[addresscolor_blue] = ConfigColor("DisassemblyAddressColorBlue");
-    mAddressColorPresets[addresscolor_yellow] = ConfigColor("DisassemblyAddressColorYellow");
-    mAddressColorPresets[addresscolor_orange] = ConfigColor("DisassemblyAddressColorOrange");
-    mAddressColorPresets[addresscolor_purple] = ConfigColor("DisassemblyAddressColorPurple");
+    mAddressColorPresets[addresscolor_red] = ConfigColor("AddressColorPresetRed");
+    mAddressColorPresets[addresscolor_green] = ConfigColor("AddressColorPresetGreen");
+    mAddressColorPresets[addresscolor_blue] = ConfigColor("AddressColorPresetBlue");
+    mAddressColorPresets[addresscolor_yellow] = ConfigColor("AddressColorPresetYellow");
+    mAddressColorPresets[addresscolor_orange] = ConfigColor("AddressColorPresetOrange");
+    mAddressColorPresets[addresscolor_purple] = ConfigColor("AddressColorPresetPurple");
     duint addressColorAlpha = ConfigUint("Disassembler", "AddressColorAlpha");
     if(addressColorAlpha > 255)
         addressColorAlpha = 255;
@@ -2449,27 +2449,15 @@ int Disassembly::accessibilitySelectedRow() const
     return -1;
 }
 
-void Disassembly::setAddressColor(duint va, ADDRESSCOLORPRESET preset)
-{
-    DbgSetAddressColorAt(va, preset);
-    GuiUpdateDisassemblyView();
-}
-
-void Disassembly::setRangeAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset)
+void Disassembly::setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset)
 {
     for(duint va = vaStart; va <= vaEnd; va++)
         DbgSetAddressColorAt(va, preset);
-    GuiUpdateDisassemblyView();
+    updateViewport();
 }
 
-void Disassembly::clearRangeAddressColor(duint vaStart, duint vaEnd)
+void Disassembly::clearAddressColor(duint vaStart, duint vaEnd)
 {
     DbgDelAddressColorRange(vaStart, vaEnd);
-    GuiUpdateDisassemblyView();
-}
-
-void Disassembly::clearAddressColor(duint va)
-{
-    DbgDelAddressColorRange(va, va);
-    GuiUpdateDisassemblyView();
+    updateViewport();
 }

@@ -96,7 +96,7 @@ public:
 
     QString paintContent(QPainter* painter, duint row, duint column, int x, int y, int w, int h) override;
     void paintGraphicDump(QPainter* painter, int x, int y, int addr);
-    void printSelected(QPainter* painter, duint row, duint column, int x, int y, int w, int h);
+    void printBackground(QPainter* painter, duint row, duint column, int x, int y, int w, int h);
 
     // Selection Management
     void expandSelectionUpTo(duint rva);
@@ -140,6 +140,9 @@ public:
 
     VaHistory mHistory;
 
+    //color
+    void setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
+    void clearAddressColor(duint vaStart, duint vaEnd);
 signals:
     void selectionUpdated();
 
@@ -187,6 +190,8 @@ private:
     QColor mByteFFBackgroundColor;
     QColor mByteIsPrintColor;
     QColor mByteIsPrintBackgroundColor;
+
+    QColor mAddressColorPresets[addresscolor_purple + 1];
 
     QColor mUserModuleCodePointerHighlightColor;
     QColor mUserModuleDataPointerHighlightColor;

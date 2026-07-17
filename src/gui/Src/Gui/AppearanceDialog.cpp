@@ -479,13 +479,6 @@ void AppearanceDialog::colorInfoListInit()
     colorInfoListAppend(tr("Traced line"), "DisassemblyTracedBackgroundColor", "");
     colorInfoListAppend(tr("Function Lines"), "DisassemblyFunctionColor", "");
     colorInfoListAppend(tr("Loop Lines"), "DisassemblyLoopColor", "");
-    colorInfoListAppend(tr("Address Color (Red)"), "DisassemblyAddressColorRed", "");
-    colorInfoListAppend(tr("Address Color (Green)"), "DisassemblyAddressColorGreen", "");
-    colorInfoListAppend(tr("Address Color (Blue)"), "DisassemblyAddressColorBlue", "");
-    colorInfoListAppend(tr("Address Color (Yellow)"), "DisassemblyAddressColorYellow", "");
-    colorInfoListAppend(tr("Address Color (Orange)"), "DisassemblyAddressColorOrange", "");
-    colorInfoListAppend(tr("Address Color (Purple)"), "DisassemblyAddressColorPurple", "");
-
 
     colorInfoListCategory(tr("SideBar:"), "SideBarBackgroundColor", "Disassembly");
     colorInfoListAppend(tr("Background"), "SideBarBackgroundColor", "");
@@ -635,6 +628,12 @@ void AppearanceDialog::colorInfoListInit()
     colorInfoListAppend(tr("Symbol Loading Text"), "SymbolLoadingTextColor", "");
     colorInfoListAppend(tr("Symbol Loaded Text"), "SymbolLoadedTextColor", "");
     colorInfoListAppend(tr("Link color"), "LinkColor", "");
+    colorInfoListAppend(tr("Address Color (Red)"), "AddressColorPresetRed", "");
+    colorInfoListAppend(tr("Address Color (Green)"), "AddressColorPresetGreen", "");
+    colorInfoListAppend(tr("Address Color (Blue)"), "AddressColorPresetBlue", "");
+    colorInfoListAppend(tr("Address Color (Yellow)"), "AddressColorPresetYellow", "");
+    colorInfoListAppend(tr("Address Color (Orange)"), "AddressColorPresetOrange", "");
+    colorInfoListAppend(tr("Address Color (Purple)"), "AddressColorPresetPurple", "");
 
     colorInfoIndex = 0;
 

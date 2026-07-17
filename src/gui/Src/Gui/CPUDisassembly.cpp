@@ -383,7 +383,7 @@ void CPUDisassembly::setupRightClickContextMenu()
     MenuBuilder* colorMenu = new MenuBuilder(this);
     for(const auto & preset : linePresets)
     {
-        QAction* action = makeAction(ColorIcon(ConfigColor("DisassemblyAddressColor" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setAddressColorSlot()));
+        QAction* action = makeAction(ColorIcon(ConfigColor("AddressColorPreset" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setAddressColorSlot()));
         action->setData(preset.second);
         colorMenu->addAction(action);
     }
@@ -1686,14 +1686,18 @@ void CPUDisassembly::setAddressColorSlot()
         return;
 
     ADDRESSCOLORPRESET preset = ADDRESSCOLORPRESET(action->data().toInt());
-    setRangeAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+    setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+
+    GuiUpdateAllViews();
 }
 
 void CPUDisassembly::clearAddressColorSlot()
 {
     if(!DbgIsDebugging())
         return;
-    clearRangeAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()));
+    clearAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()));
+
+    GuiUpdateAllViews();
 }
 
 void CPUDisassembly::copySelectionNoBytesSlot()

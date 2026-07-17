@@ -90,6 +90,26 @@ void CPUDump::setupContextMenu()
         return getSizeOf(d.itemSize) <= sizeof(duint) || (d.itemSize == 4 && d.dwordMode == FloatDword || d.itemSize == 8 && d.qwordMode == DoubleQword);
     });
 
+    const QVector<QPair<QString, ADDRESSCOLORPRESET>> linePresets =
+    {
+        { "Red", addresscolor_red },
+        { "Green", addresscolor_green },
+        { "Blue", addresscolor_blue },
+        { "Yellow", addresscolor_yellow },
+        { "Orange", addresscolor_orange },
+        { "Purple", addresscolor_purple },
+    };
+
+    MenuBuilder* colorMenu = new MenuBuilder(this);
+    for(const auto & preset : linePresets)
+    {
+        QAction* action = makeAction(ColorIcon(ConfigColor("AddressColorPreset" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setAddressColorSlot()));
+        action->setData(preset.second);
+        colorMenu->addAction(action);
+    }
+    colorMenu->addAction(makeAction(tr("Clear"), SLOT(clearAddressColorSlot())));
+    mMenuBuilder->addMenu(makeMenu(DIcon("color-swatches"), tr("Color")), colorMenu);
+
     MenuBuilder* breakpointMenu = new MenuBuilder(this);
     MenuBuilder* hardwareAccessMenu = new MenuBuilder(this, [this](QMenu*)
     {
@@ -1709,6 +1729,30 @@ void CPUDump::cycleAddressViewSlot()
         setView(ViewAddressUnicode);
     else
         setView(ViewAddressAscii);
+}
+
+
+void CPUDump::setAddressColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    QAction* action = qobject_cast<QAction*>(sender());
+    if(!action)
+        return;
+
+    ADDRESSCOLORPRESET preset = ADDRESSCOLORPRESET(action->data().toInt());
+    setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+
+    GuiUpdateAllViews();
+}
+
+void CPUDump::clearAddressColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    clearAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()));
+
+    GuiUpdateAllViews();
 }
 
 void CPUDump::setView(ViewEnum_t view)

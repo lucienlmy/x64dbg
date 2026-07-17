@@ -283,6 +283,27 @@ void CPUStack::setupContextMenu()
 
     //Follow PTR in Dump
     mCommonActions->build(mMenuBuilder, CommonActions::ActionDumpN | CommonActions::ActionWatch);
+
+    const QVector<QPair<QString, ADDRESSCOLORPRESET>> linePresets =
+    {
+        { "Red", addresscolor_red },
+        { "Green", addresscolor_green },
+        { "Blue", addresscolor_blue },
+        { "Yellow", addresscolor_yellow },
+        { "Orange", addresscolor_orange },
+        { "Purple", addresscolor_purple },
+    };
+
+    MenuBuilder* colorMenu = new MenuBuilder(this);
+    for(const auto & preset : linePresets)
+    {
+        QAction* action = makeAction(ColorIcon(ConfigColor("AddressColorPreset" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setAddressColorSlot()));
+        action->setData(preset.second);
+        colorMenu->addAction(action);
+    }
+    colorMenu->addAction(makeAction(tr("Clear"), SLOT(clearAddressColorSlot())));
+    mMenuBuilder->addMenu(makeMenu(DIcon("color-swatches"), tr("Color")), colorMenu);
+
     mMenuBuilder->addAction(makeAction(tr("Edit columns..."), SLOT(editColumnDialog())));
 
     mPluginMenu = new QMenu(this);
@@ -992,4 +1013,28 @@ void CPUStack::copyCommentsColumnSlot()
     }
 
     Bridge::CopyToClipboard(clipboard);
+}
+
+
+void CPUStack::setAddressColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    QAction* action = qobject_cast<QAction*>(sender());
+    if(!action)
+        return;
+
+    ADDRESSCOLORPRESET preset = ADDRESSCOLORPRESET(action->data().toInt());
+    setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+
+    GuiUpdateAllViews();
+}
+
+void CPUStack::clearAddressColorSlot()
+{
+    if(!DbgIsDebugging())
+        return;
+    clearAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()));
+
+    GuiUpdateAllViews();
 }

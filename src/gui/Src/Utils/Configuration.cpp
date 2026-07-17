@@ -63,12 +63,12 @@ Configuration::Configuration() : QObject(), noMoreMsgbox(false)
     defaultColors.insert("DisassemblyMnemonicBriefBackgroundColor", Qt::transparent);
     defaultColors.insert("DisassemblyFunctionColor", QColor("#000000"));
     defaultColors.insert("DisassemblyLoopColor", QColor("#000000"));
-    defaultColors.insert("DisassemblyAddressColorRed", QColor("#C83232"));
-    defaultColors.insert("DisassemblyAddressColorGreen", QColor("#3CB43C"));
-    defaultColors.insert("DisassemblyAddressColorBlue", QColor("#3C78C8"));
-    defaultColors.insert("DisassemblyAddressColorYellow", QColor("#C8B432"));
-    defaultColors.insert("DisassemblyAddressColorOrange", QColor("#D27828"));
-    defaultColors.insert("DisassemblyAddressColorPurple", QColor("#9650BE"));
+    defaultColors.insert("AddressColorPresetRed", QColor("#C83232"));
+    defaultColors.insert("AddressColorPresetGreen", QColor("#3CB43C"));
+    defaultColors.insert("AddressColorPresetBlue", QColor("#3C78C8"));
+    defaultColors.insert("AddressColorPresetYellow", QColor("#C8B432"));
+    defaultColors.insert("AddressColorPresetOrange", QColor("#D27828"));
+    defaultColors.insert("AddressColorPresetPurple", QColor("#9650BE"));
 
     defaultColors.insert("SideBarBackgroundColor", QColor("#FFF8F0"));
     defaultColors.insert("SideBarCipLabelColor", QColor("#FFFFFF"));

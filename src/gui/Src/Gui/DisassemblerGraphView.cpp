@@ -2453,12 +2453,12 @@ void DisassemblerGraphView::colorsUpdatedSlot()
     mAddressColor = ConfigColor("DisassemblyAddressColor");
     mAddressBackgroundColor = ConfigColor("DisassemblyAddressBackgroundColor");
     mAddressColorPresets[addresscolor_none] = Qt::transparent;
-    mAddressColorPresets[addresscolor_red] = ConfigColor("DisassemblyAddressColorRed");
-    mAddressColorPresets[addresscolor_green] = ConfigColor("DisassemblyAddressColorGreen");
-    mAddressColorPresets[addresscolor_blue] = ConfigColor("DisassemblyAddressColorBlue");
-    mAddressColorPresets[addresscolor_yellow] = ConfigColor("DisassemblyAddressColorYellow");
-    mAddressColorPresets[addresscolor_orange] = ConfigColor("DisassemblyAddressColorOrange");
-    mAddressColorPresets[addresscolor_purple] = ConfigColor("DisassemblyAddressColorPurple");
+    mAddressColorPresets[addresscolor_red] = ConfigColor("AddressColorPresetRed");
+    mAddressColorPresets[addresscolor_green] = ConfigColor("AddressColorPresetGreen");
+    mAddressColorPresets[addresscolor_blue] = ConfigColor("AddressColorPresetBlue");
+    mAddressColorPresets[addresscolor_yellow] = ConfigColor("AddressColorPresetYellow");
+    mAddressColorPresets[addresscolor_orange] = ConfigColor("AddressColorPresetOrange");
+    mAddressColorPresets[addresscolor_purple] = ConfigColor("AddressColorPresetPurple");
     duint addressColorAlpha = ConfigUint("Disassembler", "AddressColorAlpha");
     if(addressColorAlpha > 255)
         addressColorAlpha = 255;

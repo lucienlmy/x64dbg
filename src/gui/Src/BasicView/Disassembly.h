@@ -96,10 +96,8 @@ public:
     bool followInstruction(duint rva);
 
     //color
-    void setRangeAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
-    void clearRangeAddressColor(duint vaStart, duint vaEnd);
-    void setAddressColor(duint va, ADDRESSCOLORPRESET preset);
-    void clearAddressColor(duint va);
+    void setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
+    void clearAddressColor(duint vaStart, duint vaEnd);
 signals:
     void selectionChanged(duint va);
     void selectionExpanded();
