@@ -52,6 +52,17 @@ typedef enum
 
 typedef enum
 {
+    addresscolor_none = 0,
+    addresscolor_red,
+    addresscolor_green,
+    addresscolor_blue,
+    addresscolor_yellow,
+    addresscolor_orange,
+    addresscolor_purple,
+} ADDRESSCOLORPRESET;
+
+typedef enum
+{
     LOOP_NONE,
     LOOP_BEGIN,
     LOOP_MIDDLE,
@@ -133,6 +144,8 @@ DBGFUNCTIONS* DbgFunctions();
 bool DbgGetLabelAt(duint addr, SEGTYPE seg, char* label);
 bool DbgGetModuleAt(duint addr, char* module);
 bool DbgGetCommentAt(duint addr, char* comment);
+bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
+bool DbgSetAddressColorAt(duint addr, unsigned int preset);
 bool DbgGetBookmarkAt(duint addr);
 BPXTYPE DbgGetBpxTypeAt(duint addr);
 bool DbgMemIsValidReadPtr(duint addr);
@@ -155,6 +168,7 @@ void* DbgGetEncodeTypeBuffer(duint addr, duint* size);
 bool DbgSetEncodeType(duint addr, duint size, ENCODETYPE type);
 void DbgDelEncodeTypeRange(duint start, duint end);
 void DbgDelEncodeTypeSegment(duint start);
+void DbgDelAddressColorRange(duint start, duint end);
 
 struct TYPEDESCRIPTOR;
 
