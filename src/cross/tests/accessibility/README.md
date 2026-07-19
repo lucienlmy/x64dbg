@@ -89,6 +89,14 @@ uv run python -c "import sys; print(sys.executable)"
 Bringing the application to the foreground before the scrolling phase may be
 necessary when attaching to an already-running process.
 
+Qt's native Cocoa bridge reshapes a table as direct `AXRow` and `AXColumn`
+children, with `AXCell` elements nested under each row. In current Qt 6 native
+`QTableWidget`/`QTableView` xa11y captures, the `AXColumn` snapshots do not
+include the visible column-header names. The script records those columns and
+marks missing header names as known expected failures on macOS. This keeps the
+gap visible and automatically turns the checks into passes if xa11y later
+exposes the header relationships; data-cell Name assertions remain active.
+
 ### Linux
 
 Run under a desktop session with AT-SPI2 available. Force Qt accessibility on:
@@ -111,8 +119,9 @@ The output directory contains:
   before/after scroll snapshots, checks, and accessibility events.
 - `minidump.stdout.log` and `minidump.stderr.log`.
 
-xa11y currently normalizes Qt/UIA DataItem cells as `table_row` on Windows,
-while macOS and Linux commonly expose them as `table_cell`. The underlying
-x64dbg child layout deliberately follows Qt's native accessible table layout;
-the capture records both normalized roles and native `raw` fields so that this
-xa11y distinction remains visible.
+xa11y currently normalizes Qt/UIA DataItem cells as `table_row` on Windows.
+Linux exposes the corresponding objects directly as `table_cell`; macOS exposes
+`AXRow` containers with nested `AXCell`/`table_cell` objects. The underlying
+x64dbg child layout deliberately follows Qt's native accessible table contract;
+the capture records both normalized roles and native `raw` fields so these
+platform adaptations remain visible.
