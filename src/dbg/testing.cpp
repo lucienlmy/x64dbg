@@ -44,16 +44,25 @@ static void setFirstFailureMessage(const String & message)
         gTestState.firstFailureMessage = message;
 }
 
+static void logTestMessage(const String & message)
+{
+    // Test protocol messages must bypass the asynchronous debugger logger.
+    // testfinalize closes headless immediately, so a queued FINAL line can be
+    // discarded during process teardown before the test runner observes it.
+    // Start a fresh line in case another thread emitted a partial log message.
+    GuiAddLogMessage(("\n" + message).c_str());
+}
+
 static void logAssertionFailure(const char* source, const char* expression, const char* message)
 {
     if(expression && *expression && message && *message)
-        dprintf_untranslated("[x64dbg-test] ASSERT FAIL source=%s expr=\"%s\" message=\"%s\"\n", source, expression, message);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] ASSERT FAIL source=%s expr=\"%s\" message=\"%s\"\n", source, expression, message));
     else if(expression && *expression)
-        dprintf_untranslated("[x64dbg-test] ASSERT FAIL source=%s expr=\"%s\"\n", source, expression);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] ASSERT FAIL source=%s expr=\"%s\"\n", source, expression));
     else if(message && *message)
-        dprintf_untranslated("[x64dbg-test] ASSERT FAIL source=%s message=\"%s\"\n", source, message);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] ASSERT FAIL source=%s message=\"%s\"\n", source, message));
     else
-        dprintf_untranslated("[x64dbg-test] ASSERT FAIL source=%s\n", source);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] ASSERT FAIL source=%s\n", source));
 }
 
 static bool assertCommon(bool condition, const char* source, const char* expression, const char* message)
@@ -169,9 +178,10 @@ bool cbInstrTestFinalize(int argc, char* argv[])
         reason = "script_failed";
 
     if(reason)
-        dprintf_untranslated("[x64dbg-test] FINAL status=fail asserts=%llu reason=%s\n", asserts, reason);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] FINAL status=fail asserts=%llu reason=%s\n", asserts, reason));
     else
-        dprintf_untranslated("[x64dbg-test] FINAL status=pass asserts=%llu\n", asserts);
+        logTestMessage(StringUtils::sprintf("[x64dbg-test] FINAL status=pass asserts=%llu\n", asserts));
+    GuiFlushLog();
 
     if(BridgeIsHeadless())
         GuiCloseApplication();

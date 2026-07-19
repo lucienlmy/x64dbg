@@ -88,7 +88,15 @@ jobs:
       - name: Run Tests
         shell: pwsh
         run: |
-          py src/tests/run.py --arch ${{ matrix.arch }} --engine ${{ matrix.engine }} --artifacts-dir "test-artifacts/${{ matrix.arch }}-${{ matrix.engine }}"
+          $artifactDir = Join-Path $PWD "test-artifacts/${{ matrix.arch }}-${{ matrix.engine }}"
+          $dumpDir = Join-Path $artifactDir "crash-dumps"
+          $localDumps = "HKCU:\Software\Microsoft\Windows\Windows Error Reporting\LocalDumps\headless.exe"
+          New-Item -Path $localDumps -Force | Out-Null
+          New-ItemProperty -Path $localDumps -Name DumpFolder -Value $dumpDir -PropertyType ExpandString -Force | Out-Null
+          New-ItemProperty -Path $localDumps -Name DumpType -Value 2 -PropertyType DWord -Force | Out-Null
+          New-ItemProperty -Path $localDumps -Name DumpCount -Value 4 -PropertyType DWord -Force | Out-Null
+          Write-Host "Full headless crash dumps will be written to $dumpDir"
+          py src/tests/run.py --arch ${{ matrix.arch }} --engine ${{ matrix.engine }} --artifacts-dir $artifactDir
 
       - name: Upload Test Artifacts
         if: failure()
