@@ -181,6 +181,7 @@ set(X64DBG_STANDARD_TESTS
     script_run_exit
     scriptcmd_call
     scriptcmd_call_threads
+    swbp_stale
     trace_cmd_condition
 )
 
