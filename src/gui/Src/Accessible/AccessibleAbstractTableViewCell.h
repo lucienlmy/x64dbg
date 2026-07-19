@@ -1,6 +1,7 @@
 #pragma once
 #ifndef QT_NO_ACCESSIBILITY
 #include <QAccessibleWidget>
+#include <QPointer>
 #include "../BasicView/AbstractTableView.h"
 
 class AccessibleAbstractTableView;
@@ -10,9 +11,12 @@ class AccessibleAbstractTableViewCell : public QAccessibleInterface, public QAcc
 protected:
     int row; // Zero-based visible data row; column headers are separate children.
     int column;
-    AccessibleAbstractTableView* mParent;
+    quint64 mModelRevision;
+    QPointer<AbstractTableView> mTableView;
+    AccessibleAbstractTableView* accessibleTable() const;
+    bool belongsTo(const AccessibleAbstractTableView* table) const;
 public:
-    AccessibleAbstractTableViewCell(AccessibleAbstractTableView* parent, int row, int column);
+    AccessibleAbstractTableViewCell(AbstractTableView* tableView, int row, int column, quint64 modelRevision);
     // QAccessibleInterface
     QString text(QAccessible::Text t) const override;
     QColor foregroundColor() const override;

@@ -3,12 +3,10 @@
 #include <QAccessibleWidget>
 #include "AccessibleAbstractTableViewCell.h"
 
-class AccessibleAbstractTableView;
-
 class AccessibleAbstractTableViewCellTitle : public AccessibleAbstractTableViewCell
 {
 public:
-    AccessibleAbstractTableViewCellTitle(AccessibleAbstractTableView* parent, int column);
+    AccessibleAbstractTableViewCellTitle(AbstractTableView* tableView, int column, quint64 modelRevision);
     // QAccessibleInterface
     QString text(QAccessible::Text t) const override;
     QColor foregroundColor() const override;

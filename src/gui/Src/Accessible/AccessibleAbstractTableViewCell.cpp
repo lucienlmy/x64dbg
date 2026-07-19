@@ -4,23 +4,44 @@
 #include "AccessibleAbstractTableView.h"
 #include <exception>
 
-AccessibleAbstractTableViewCell::AccessibleAbstractTableViewCell(AccessibleAbstractTableView* parent, int row, int column)
+AccessibleAbstractTableViewCell::AccessibleAbstractTableViewCell(AbstractTableView* tableView, int row, int column, quint64 modelRevision)
     : row(row)
     , column(column)
-    , mParent(parent)
+    , mModelRevision(modelRevision)
+    , mTableView(tableView)
 {
+}
+
+AccessibleAbstractTableView* AccessibleAbstractTableViewCell::accessibleTable() const
+{
+    // Match QAccessibleTableCell: virtual children retain the QObject-backed
+    // view and resolve its current adapter instead of retaining an adapter that
+    // may be synchronously replaced by a platform accessibility bridge.
+    return dynamic_cast<AccessibleAbstractTableView*>(parent());
+}
+
+bool AccessibleAbstractTableViewCell::belongsTo(const AccessibleAbstractTableView* table) const
+{
+    // Visible coordinates are our equivalent of QTableView's persistent model
+    // index. A cell from before a viewport/model reset must not become valid
+    // merely because a replacement adapter has the same dimensions.
+    return table
+           && mTableView
+           && table->getTable() == mTableView.data()
+           && table->modelRevision == mModelRevision;
 }
 
 QString AccessibleAbstractTableViewCell::text(QAccessible::Text t) const
 {
-    if(!isValid())
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    if(!belongsTo(accessible) || !accessible->cellIsValid(row, column))
         return QString();
     switch(t)
     {
     case QAccessible::Name:
         try
         {
-            return mParent->getCellContent(row, mParent->logicalColumn(column));
+            return accessible->getCellContent(row, accessible->logicalColumn(column));
         }
         catch(const std::exception &)
         {
@@ -35,7 +56,10 @@ QString AccessibleAbstractTableViewCell::text(QAccessible::Text t) const
 
 QColor AccessibleAbstractTableViewCell::foregroundColor() const
 {
-    return isValid() ? mParent->getTable()->mTextColor : QColor();
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->cellIsValid(row, column) && mTableView
+           ? mTableView->mTextColor
+           : QColor();
 }
 
 int AccessibleAbstractTableViewCell::childCount() const
@@ -45,12 +69,14 @@ int AccessibleAbstractTableViewCell::childCount() const
 
 QWindow* AccessibleAbstractTableViewCell::window() const
 {
-    return mParent ? mParent->window() : nullptr;
+    if(AccessibleAbstractTableView* accessible = accessibleTable())
+        return accessible->window();
+    return nullptr;
 }
 
 QAccessibleInterface* AccessibleAbstractTableViewCell::parent() const
 {
-    return mParent ? static_cast<QAccessibleInterface*>(mParent) : nullptr;
+    return mTableView ? QAccessible::queryAccessibleInterface(mTableView.data()) : nullptr;
 }
 
 QAccessibleInterface* AccessibleAbstractTableViewCell::child(int index) const
@@ -73,19 +99,20 @@ QAccessible::Role AccessibleAbstractTableViewCell::role() const
 QAccessible::State AccessibleAbstractTableViewCell::state() const
 {
     QAccessible::State result;
-    if(!isValid())
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    const AbstractTableView* table = mTableView.data();
+    if(!belongsTo(accessible) || !accessible->cellIsValid(row, column) || !table)
     {
         result.invalid = true;
         return result;
     }
 
-    const AbstractTableView* table = mParent->getTable();
     const bool enabled = table->isEnabled();
     const bool visible = !rect().isEmpty();
     result.disabled = !enabled;
     result.focusable = enabled;
     result.selectable = enabled;
-    result.selected = isSelected();
+    result.selected = accessible->isRowSelected(row);
     result.focused = result.selected
                      && table->accessibilitySelectedColumn == column
                      && table->hasFocus();
@@ -115,12 +142,14 @@ void AccessibleAbstractTableViewCell::setText(QAccessible::Text t, const QString
 
 QRect AccessibleAbstractTableViewCell::rect() const
 {
-    return mParent ? mParent->elementRect(row, column, false) : QRect();
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) ? accessible->elementRect(row, column, false) : QRect();
 }
 
 bool AccessibleAbstractTableViewCell::isValid() const
 {
-    return mParent && mParent->cellIsValid(row, column);
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->cellIsValid(row, column);
 }
 
 void* AccessibleAbstractTableViewCell::interface_cast(QAccessible::InterfaceType type)
@@ -132,14 +161,16 @@ void* AccessibleAbstractTableViewCell::interface_cast(QAccessible::InterfaceType
 
 bool AccessibleAbstractTableViewCell::isSelected() const
 {
-    return isValid() && mParent->isRowSelected(row);
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->cellIsValid(row, column) && accessible->isRowSelected(row);
 }
 
 QList<QAccessibleInterface*> AccessibleAbstractTableViewCell::columnHeaderCells() const
 {
-    if(!isValid())
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    if(!belongsTo(accessible) || !accessible->cellIsValid(row, column))
         return QList<QAccessibleInterface*>();
-    if(auto header = mParent->columnHeaderInterface(column))
+    if(auto header = accessible->columnHeaderInterface(column))
         return QList<QAccessibleInterface*>({header});
     return QList<QAccessibleInterface*>();
 }
@@ -172,7 +203,7 @@ int AccessibleAbstractTableViewCell::rowExtent() const
 
 QAccessibleInterface* AccessibleAbstractTableViewCell::table() const
 {
-    return mParent ? static_cast<QAccessibleInterface*>(mParent) : nullptr;
+    return parent();
 }
 
 #endif

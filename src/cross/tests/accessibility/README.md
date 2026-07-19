@@ -90,20 +90,24 @@ Bringing the application to the foreground before the scrolling phase may be
 necessary when attaching to an already-running process.
 
 Qt's native Cocoa bridge reshapes a table as direct `AXRow` and `AXColumn`
-children, with `AXCell` elements nested under each row. However, Qt 6.8 and
-later contain a Cocoa lifetime bug in that synthesized table representation.
-On those versions x64dbg's custom-painted tables retain their `Table` role but
-withhold `QAccessibleTableInterface` on macOS, exposing headers and visible
-cells as flat direct children instead. The standard `QTableWidget` Threads view
-continues to use Qt's native row/column representation as a comparison.
+children, with `AXCell` elements nested under each row. Qt 6.8 and later contain
+a lifetime bug in that synthesized representation: Cocoa can synchronously
+replace the accessible table adapter while processing a virtual-cell event.
+x64dbg's custom tables therefore follow Qt's `QTableView` accessibility
+lifetime model. Cells and headers retain the QObject-backed view and re-query
+its current adapter, while focus and selection events identify a cell through
+the view plus a stable child index. The custom tables and the standard
+`QTableWidget` Threads view consequently retain the same native row/column
+semantics. This path is verified with Qt 6.9.2, Qt 6.11.1, and Qt 6.12.0 beta2.
 
 In current Qt 6 native `QTableWidget`/`QTableView` xa11y captures, the
 `AXColumn` snapshots do not include the visible column-header names. The script
 records those columns and marks missing header names as known expected failures
 on macOS. This keeps the gap visible and automatically turns the checks into
-passes if xa11y later exposes the header relationships; custom-table direct
-header and data-cell Name assertions remain active. The script also accepts the
-`AXRadioButton` role that current Cocoa exposes for `QTabBar` tabs.
+passes if xa11y later exposes the header relationships; data-cell Name
+assertions remain active. The script also handles the `AXRadioButton` and,
+under Qt 6.9, unnamed `AXUnknown` roles that Cocoa may expose for `QTabBar`
+tabs.
 
 ### Linux
 

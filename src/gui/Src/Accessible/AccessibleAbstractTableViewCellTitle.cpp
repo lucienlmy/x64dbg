@@ -3,40 +3,48 @@
 #include "AccessibleAbstractTableViewCellTitle.h"
 #include "AccessibleAbstractTableView.h"
 
-AccessibleAbstractTableViewCellTitle::AccessibleAbstractTableViewCellTitle(AccessibleAbstractTableView* parent, int column)
-    : AccessibleAbstractTableViewCell(parent, -1, column)
+AccessibleAbstractTableViewCellTitle::AccessibleAbstractTableViewCellTitle(AbstractTableView* tableView, int column, quint64 modelRevision)
+    : AccessibleAbstractTableViewCell(tableView, -1, column, modelRevision)
 {
 }
 
 QString AccessibleAbstractTableViewCellTitle::text(QAccessible::Text t) const
 {
-    if(!isValid())
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    if(!belongsTo(accessible) || !accessible->headerIsValid(column))
         return QString();
     if(t == QAccessible::Name)
-        return mParent->getTable()->getColTitle(mParent->logicalColumn(column));
+        return mTableView->getColTitle(accessible->logicalColumn(column));
     return QString();
 }
 
 QColor AccessibleAbstractTableViewCellTitle::foregroundColor() const
 {
-    return isValid() ? mParent->getTable()->mHeaderTextColor : QColor();
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->headerIsValid(column) && mTableView
+           ? mTableView->mHeaderTextColor
+           : QColor();
 }
 
 QColor AccessibleAbstractTableViewCellTitle::backgroundColor() const
 {
-    return isValid() ? mParent->getTable()->mHeaderBackgroundColor : QColor();
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->headerIsValid(column) && mTableView
+           ? mTableView->mHeaderBackgroundColor
+           : QColor();
 }
 
 QAccessible::State AccessibleAbstractTableViewCellTitle::state() const
 {
     QAccessible::State result;
-    if(!isValid())
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    const AbstractTableView* table = mTableView.data();
+    if(!belongsTo(accessible) || !accessible->headerIsValid(column) || !table)
     {
         result.invalid = true;
         return result;
     }
 
-    const AbstractTableView* table = mParent->getTable();
     const bool visible = !rect().isEmpty();
     result.disabled = !table->isEnabled();
     result.readOnly = true;
@@ -47,7 +55,8 @@ QAccessible::State AccessibleAbstractTableViewCellTitle::state() const
 
 QRect AccessibleAbstractTableViewCellTitle::rect() const
 {
-    return mParent ? mParent->elementRect(-1, column, true) : QRect();
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) ? accessible->elementRect(-1, column, true) : QRect();
 }
 
 QAccessible::Role AccessibleAbstractTableViewCellTitle::role() const
@@ -62,7 +71,8 @@ int AccessibleAbstractTableViewCellTitle::rowIndex() const
 
 bool AccessibleAbstractTableViewCellTitle::isValid() const
 {
-    return mParent && mParent->headerIsValid(column);
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    return belongsTo(accessible) && accessible->headerIsValid(column);
 }
 
 void* AccessibleAbstractTableViewCellTitle::interface_cast(QAccessible::InterfaceType type)

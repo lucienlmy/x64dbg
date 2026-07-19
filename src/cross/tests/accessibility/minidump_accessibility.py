@@ -60,6 +60,7 @@ TAB_SPECS = (
                 ),
                 9,
                 exercise_scroll=True,
+                exercise_selection=True,
             ),
         ),
     ),
@@ -254,27 +255,59 @@ def content_signature(snapshot: dict[str, Any]) -> tuple[tuple[str, str, str], .
     return tuple(result)
 
 
+def activate_element(element: Any) -> None:
+    try:
+        element.press()
+    except Exception:
+        # Some platform bridges expose tabs as selectable but not pressable.
+        try:
+            element.select()
+        except Exception:
+            xa11y.input_sim().click(element)
+
+
+def find_cocoa_tab(app: Any, name: str) -> Any | None:
+    # A native AX table can have hundreds of nested row/cell nodes. Breadth-first
+    # traversal that prunes data controls reaches the sibling QTabBar reliably,
+    # even when the provider's bounded selector search stops inside the table.
+    tab_names = tuple(spec.name for spec in TAB_SPECS)
+    current = [app.as_element()]
+    for _ in range(8):
+        following = []
+        for element in current:
+            if element.role in ("radio_button", "tab") and element.name == name:
+                return element
+            children = element.children()
+            if element.role == "tab_group":
+                # Qt 6.9 Cocoa can expose the first QTabBar tab as an unnamed
+                # AXUnknown element. QTabBar child order is still stable.
+                index = tab_names.index(name)
+                if index < len(children):
+                    return children[index]
+            if element.role in ("table", "table_row", "table_cell", "list"):
+                continue
+            following.extend(children)
+        current = following
+        if not current:
+            break
+    return None
+
+
 def activate_tab(app: Any, name: str) -> None:
     # Qt's Cocoa bridge exposes QTabBar tabs as AXRadioButton on current Qt 6,
     # while other backends and older captures normalize them as `tab`.
-    roles = (
-        ("radio_button", "tab")
-        if sys.platform == "darwin"
-        else ("tab", "radio_button")
-    )
+    if sys.platform == "darwin":
+        if element := find_cocoa_tab(app, name):
+            activate_element(element)
+            time.sleep(0.3)
+            return
+
     last_error: Exception | None = None
-    for role in roles:
+    for role in ("tab", "radio_button"):
         locator = app.locator(f"{role}[name='{name}']")
         try:
             locator.wait_visible(timeout=10.0)
-            try:
-                locator.press()
-            except Exception:
-                # Some platform bridges expose tabs as selectable but not pressable.
-                try:
-                    locator.select()
-                except Exception:
-                    xa11y.input_sim().click(locator.element())
+            activate_element(locator.element())
             time.sleep(0.3)
             return
         except Exception as exc:
@@ -386,25 +419,37 @@ def exercise_scroll(
     return {"changed": changed, "attempts": attempts, "after": after}
 
 
+def selectable_descendants(element: Any, depth: int = 2) -> list[Any]:
+    result = []
+    current = [element]
+    for _ in range(depth):
+        following = []
+        for parent in current:
+            for child in parent.children():
+                if (
+                    child.role in ("table_cell", "list_item")
+                    and child.visible
+                    and child.bounds is not None
+                    and child.bounds.width > 0
+                    and child.bounds.height > 0
+                ):
+                    result.append(child)
+                else:
+                    following.append(child)
+        current = following
+    return result
+
+
 def exercise_selection(
     process: subprocess.Popen[bytes] | None,
     locator: Any,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {"selected": False}
     try:
-        children = locator.element().children()
-        visible = [
-            (index, child)
-            for index, child in enumerate(children)
-            if child.visible
-            and child.bounds is not None
-            and child.bounds.width > 0
-            and child.bounds.height > 0
-        ]
-        if not visible:
-            raise RuntimeError("No visible child is available for selection")
-        index, target = visible[1] if len(visible) > 1 else visible[0]
-        result["index"] = index
+        candidates = selectable_descendants(locator.element())
+        if not candidates:
+            raise RuntimeError("No visible cell/item is available for selection")
+        target = candidates[1] if len(candidates) > 1 else candidates[0]
         result["before"] = element_summary(target)
         try:
             target.focus()
@@ -416,9 +461,14 @@ def exercise_selection(
             raise RuntimeError(
                 f"minidump exited during selection with code {process.returncode}"
             )
-        refreshed = locator.element().children()[index]
-        result["after"] = element_summary(refreshed)
-        result["selected"] = bool(refreshed.selected)
+        refreshed = selectable_descendants(locator.element())
+        changed = next(
+            (child for child in refreshed if child.selected or child.focused),
+            None,
+        )
+        if changed is not None:
+            result["after"] = element_summary(changed)
+            result["selected"] = True
     except Exception as exc:
         result["error"] = str(exc)
     return result

@@ -248,5 +248,6 @@ protected:
     int accessibilityPreviousSelectedRow = -1;
     int accessibilityPreviousSelectedColumn = -1;
     virtual int accessibilitySelectedRow() const;
+    int accessibilityVisibleColumnCount() const;
     void accessibilityMousePressSetColumn(QMouseEvent* event);
 };

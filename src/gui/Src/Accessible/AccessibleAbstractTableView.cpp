@@ -108,7 +108,7 @@ QAccessibleInterface* AccessibleAbstractTableView::cellInterface(int row, int co
     if(id == 0)
     {
         id = QAccessible::registerAccessibleInterface(
-                 new AccessibleAbstractTableViewCell(const_cast<AccessibleAbstractTableView*>(this), row, column));
+                 new AccessibleAbstractTableViewCell(m_tableView, row, column, modelRevision));
     }
     return QAccessible::accessibleInterface(id);
 }
@@ -122,7 +122,7 @@ QAccessibleInterface* AccessibleAbstractTableView::columnHeaderInterface(int col
     if(id == 0)
     {
         id = QAccessible::registerAccessibleInterface(
-                 new AccessibleAbstractTableViewCellTitle(const_cast<AccessibleAbstractTableView*>(this), column));
+                 new AccessibleAbstractTableViewCellTitle(m_tableView, column, modelRevision));
     }
     return QAccessible::accessibleInterface(id);
 }
@@ -231,20 +231,7 @@ QAccessible::State AccessibleAbstractTableView::state() const
 void* AccessibleAbstractTableView::interface_cast(QAccessible::InterfaceType type)
 {
     if(type == QAccessible::TableInterface)
-    {
-#if defined(Q_OS_DARWIN) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
-        // Qt's Cocoa table bridge gives synthetic rows, columns, and cell
-        // placeholders the table's accessible ID. Releasing a placeholder can
-        // consequently delete the table interface. Qt 6.11 also emits virtual
-        // child-destroyed events during that deletion, causing unbounded
-        // reentrant table creation/deletion. Keep the Table role and expose our
-        // virtual children through QAccessibleInterface, but do not opt into the
-        // broken native table synthesis on affected Qt versions.
-        return nullptr;
-#else
         return static_cast<QAccessibleTableInterface*>(this);
-#endif
-    }
     return QAccessibleWidget::interface_cast(type);
 }
 
