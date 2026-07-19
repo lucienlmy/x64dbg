@@ -17,6 +17,8 @@ set(hook_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Bridge.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Configuration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Configuration.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/CrossAccessible.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CrossAccessible.h
     ${CMAKE_CURRENT_SOURCE_DIR}/MagicMenu.h
     ${CMAKE_CURRENT_SOURCE_DIR}/MiscUtil.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MiscUtil.h
@@ -28,6 +30,18 @@ set(hook_SOURCES
 )
 
 set(widgets_SOURCES
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableView.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableView.h
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableViewCell.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableViewCell.h
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableViewCellTitle.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleAbstractTableViewCellTitle.h
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleDisassembly.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleDisassembly.h
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleHexDump.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleHexDump.h
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleStdTable.cpp
+    ${widgets_SOURCE_DIR}/Accessible/AccessibleStdTable.h
     ${widgets_SOURCE_DIR}/BasicView/AbstractStdTable.cpp
     ${widgets_SOURCE_DIR}/BasicView/AbstractStdTable.h
     ${widgets_SOURCE_DIR}/BasicView/AbstractTableView.cpp
@@ -109,6 +123,10 @@ target_include_directories(x64dbg_widgets PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${widgets_SOURCE_DIR}
     ${widgets_SOURCE_DIR}/Utils
+)
+
+target_include_directories(x64dbg_widgets PRIVATE
+    ${widgets_SOURCE_DIR}/BasicView
 )
 
 source_group(TREE ${widgets_SOURCE_DIR} FILES ${widgets_SOURCES})

@@ -7,8 +7,11 @@
 MiniThreads::MiniThreads(QWidget* parent)
     : QSplitter(Qt::Horizontal, parent)
 {
+    setAccessibleName(tr("Threads"));
+
     // Thread list table
     mThreadList = new QTableWidget(this);
+    mThreadList->setAccessibleName(tr("Threads"));
     mThreadList->setColumnCount(3);
     mThreadList->setHorizontalHeaderLabels({tr("Thread ID"), tr("TEB"), tr("CIP")});
     mThreadList->setSelectionBehavior(QAbstractItemView::SelectRows);

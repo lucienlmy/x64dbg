@@ -6,6 +6,8 @@
 DataTable::DataTable(QWidget* parent)
     : StdTable(parent)
 {
+    setAccessibleName(tr("Data Inspector"));
+
     auto type = [this](const QString & name, DataFn fn)
     {
         mTypes.emplace_back(name, std::move(fn));

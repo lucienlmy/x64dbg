@@ -6,6 +6,8 @@
 /**
 * Accessible interface for AbstractTableView.
 * This accessibility interface only exposes what is visible on the screen because the data scale of underlying AbstractTableView is uncontrollable.
+* Its direct-child layout matches Qt's QAccessibleTable without a vertical
+* header: column headers first, followed by row-major data cells.
 */
 class AccessibleAbstractTableView : public QAccessibleWidget, public QAccessibleTableInterface
 {
