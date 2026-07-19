@@ -1448,53 +1448,43 @@ void AbstractTableView::accessibilitySelectionChanged()
         accessibilityNotifyTableModelChanged();
     }
 
-    QAccessibleInterface* accessible = QAccessible::queryAccessibleInterface(this);
-    if(!accessible)
-        return;
-    auto tableInterface = static_cast<QAccessibleTableInterface*>(accessible->interface_cast(QAccessible::TableInterface));
-    if(!tableInterface)
-        return;
+    // Treat each synchronous accessibility update as an invalidation point for
+    // virtual interfaces. In Qt 6.9, the Cocoa table bridge can replace a
+    // placeholder cell and delete the table's cached interface while handling
+    // an event. Never retain an interface across updateAccessibility().
+    const auto sendCellEvent = [this](int row, int column, QAccessible::Event type)
+    {
+        if(row < 0 || column < 0)
+            return false;
+        QAccessibleInterface* accessible = QAccessible::queryAccessibleInterface(this);
+        if(!accessible)
+            return false;
+        auto tableInterface = static_cast<QAccessibleTableInterface*>(accessible->interface_cast(QAccessible::TableInterface));
+        if(!tableInterface
+                || row >= tableInterface->rowCount()
+                || column >= tableInterface->columnCount())
+            return false;
+        QAccessibleInterface* cell = tableInterface->cellAt(row, column);
+        if(!cell)
+            return false;
+
+        QAccessibleEvent event(cell, type);
+        QAccessible::updateAccessibility(&event);
+        return true;
+    };
 
     const int selectedRow = accessibilitySelectedRow();
     const int selectedColumn = accessibilitySelectedColumn;
     const bool rowChanged = selectedRow != accessibilityPreviousSelectedRow;
 
-    if(rowChanged
-            && accessibilityPreviousSelectedRow >= 0
-            && accessibilityPreviousSelectedRow < tableInterface->rowCount()
-            && accessibilityPreviousSelectedColumn >= 0
-            && accessibilityPreviousSelectedColumn < tableInterface->columnCount())
+    if(rowChanged)
     {
-        if(auto previousCell = tableInterface->cellAt(accessibilityPreviousSelectedRow, accessibilityPreviousSelectedColumn))
-        {
-            // Interface-based events are appropriate here because cells are virtual
-            // children whose object() is nullptr.
-            QAccessibleEvent removeEvent(previousCell, QAccessible::SelectionRemove);
-            QAccessible::updateAccessibility(&removeEvent);
-        }
+        sendCellEvent(accessibilityPreviousSelectedRow, accessibilityPreviousSelectedColumn,
+                      QAccessible::SelectionRemove);
+        sendCellEvent(selectedRow, selectedColumn, QAccessible::SelectionAdd);
     }
 
-    QAccessibleInterface* selectedCell = nullptr;
-    if(selectedRow >= 0 && selectedRow < tableInterface->rowCount()
-            && selectedColumn >= 0 && selectedColumn < tableInterface->columnCount())
-    {
-        selectedCell = tableInterface->cellAt(selectedRow, selectedColumn);
-    }
-
-    if(selectedCell)
-    {
-        if(rowChanged)
-        {
-            QAccessibleEvent selectionEvent(selectedCell, QAccessible::SelectionAdd);
-            QAccessible::updateAccessibility(&selectionEvent);
-        }
-        if(hasFocus())
-        {
-            QAccessibleEvent focusEvent(selectedCell, QAccessible::Focus);
-            QAccessible::updateAccessibility(&focusEvent);
-        }
-    }
-    else if(hasFocus())
+    if(hasFocus() && !sendCellEvent(selectedRow, selectedColumn, QAccessible::Focus))
     {
         QAccessibleEvent focusEvent(this, QAccessible::Focus);
         QAccessible::updateAccessibility(&focusEvent);
