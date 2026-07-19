@@ -241,7 +241,12 @@ protected:
     friend class AccessibleAbstractTableViewCellTitle;
     void accessibilitySelectionChanged();
     void accessibilityTableModelChanged();
+    void accessibilityNotifyTableModelChanged();
+    quint64 accessibilityModelRevision = 0;
+    bool accessibilityModelChangePending = false;
     int accessibilitySelectedColumn; // display index excluding hidden columns
+    int accessibilityPreviousSelectedRow = -1;
+    int accessibilityPreviousSelectedColumn = -1;
     virtual int accessibilitySelectedRow() const;
     void accessibilityMousePressSetColumn(QMouseEvent* event);
 };

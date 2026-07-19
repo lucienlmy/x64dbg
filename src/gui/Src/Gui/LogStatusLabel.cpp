@@ -1,10 +1,7 @@
 #include "LogStatusLabel.h"
 #include "LogView.h"
-#include <QTextDocument>
-#include <QTextDocumentFragment>
 #include <QApplication>
 #include <QStatusBar>
-#include <QAccessible>
 
 LogStatusLabel::LogStatusLabel(QStatusBar* parent) : QLabel(parent)
 {
@@ -45,12 +42,7 @@ void LogStatusLabel::logUpdate(QString message, bool encodeHTML)
         }
     }
     setText(finalLabel);
-    // Send accesibility events
-    if(QAccessible::isActive())
-    {
-        QAccessibleValueChangeEvent updateEvent(this, QTextDocumentFragment::fromHtml(finalLabel).toPlainText());
-        QAccessible::updateAccessibility(&updateEvent);
-    }
+    // QLabel::setText() emits QAccessible::NameChanged when needed.
 }
 
 void LogStatusLabel::logUpdateUtf8(QByteArray message)

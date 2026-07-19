@@ -285,6 +285,7 @@ protected:
     QAction* SIMDHQWord;
     QAction* SIMDXMMSizeAuto;
     QAction* SIMDAlwaysShowAVX512;
+    REGISTER_NAME mAccessibilityPreviousSelected = UNKNOWN;
     void accessibilitySelectionChanged();
     void accessibilityValueChanged();
     friend class AccessibleRegistersView;

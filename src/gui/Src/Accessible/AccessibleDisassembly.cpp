@@ -19,69 +19,41 @@ Disassembly* AccessibleDisassembly::dis() const
 
 bool AccessibleDisassembly::isRowSelected(int row) const
 {
-    // row includes title
-    auto dis = this->dis();
-    try
-    {
-        return dis->getInitialSelection() == dis->mInstBuffer.at(row - 1).rva;
-    }
-    catch(std::out_of_range)
-    {
-        return false;
-    }
+    // Synchronize mInstBuffer before inspecting it. AT clients can call this
+    // method directly, without first querying rowCount() or a cell.
+    const int currentRowCount = rowCount();
+    const auto disassembly = dis();
+    return row >= 0
+           && row < currentRowCount
+           && row < disassembly->mInstBuffer.size()
+           && disassembly->getInitialSelection() == disassembly->mInstBuffer.at(row).rva;
 }
 
 // TODO: multi-selection
 int AccessibleDisassembly::selectedRowCount() const
 {
-    // row includes title
-    auto dis = this->dis();
-    const auto & inst = dis->mInstBuffer;
-    auto sel = dis->getInitialSelection();
-    if(sel >= inst.first().rva && sel <= inst.back().rva)
-        return 1;
-    else
-        return 0;
-}
-
-static int findFirstSelection(duint sel, const QList<Instruction_t> & inst)
-{
-    if(sel >= inst.first().rva && sel <= inst.back().rva)
-    {
-        for(int i = 0; i < inst.size(); i++)
-        {
-            if(inst[i].rva == sel)
-            {
-                return i + 1;
-            }
-        }
-    }
-    return -1;
+    return selectedRows().size();
 }
 
 QList<int> AccessibleDisassembly::selectedRows() const
 {
-    auto dis = this->dis();
-    int selectedRow = findFirstSelection(dis->getInitialSelection(), dis->mInstBuffer);
-    if(selectedRow != -1)
-        return QList<int>({ selectedRow });
-    else
-        return QList<int>();
+    // rowCount() synchronizes mInstBuffer with the current viewport before
+    // accessibilitySelectedRow() searches it.
+    const int currentRowCount = rowCount();
+    const int selectedRow = dis()->accessibilitySelectedRow();
+    if(selectedRow >= 0 && selectedRow < currentRowCount)
+        return QList<int>({selectedRow});
+    return QList<int>();
 }
 
 int AccessibleDisassembly::selectedCellCount() const
 {
-    return selectedRowCount();
+    return AccessibleAbstractTableView::selectedCellCount();
 }
 
 QList<QAccessibleInterface*> AccessibleDisassembly::selectedCells() const
 {
-    auto dis = this->dis();
-    int selectedRow = findFirstSelection(dis->getInitialSelection(), dis->mInstBuffer);
-    if(selectedRow != -1)
-        return QList<QAccessibleInterface*>({ cellAt(selectedRow, selectedColumns().first()) });
-    else
-        return QList<QAccessibleInterface*>();
+    return AccessibleAbstractTableView::selectedCells();
 }
 
 static QString getDisassemblyMnemonicBrief(const Instruction_t & inst)

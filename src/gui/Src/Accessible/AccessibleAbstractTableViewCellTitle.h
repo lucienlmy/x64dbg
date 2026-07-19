@@ -19,6 +19,8 @@ public:
     QRect rect() const override;
     QAccessible::Role role() const override;
     int rowIndex() const override;
+    bool isValid() const override;
+    void* interface_cast(QAccessible::InterfaceType type) override;
 };
 
 #endif

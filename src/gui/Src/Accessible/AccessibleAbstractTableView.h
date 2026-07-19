@@ -11,7 +11,10 @@ class AccessibleAbstractTableView : public QAccessibleWidget, public QAccessible
 {
     std::vector<QAccessible::Id> cellInterfaces;
     std::vector<QAccessible::Id> columnTitleInterfaces;
-    int rows, cols;
+    int rows = 0;
+    int cols = 0;
+    duint tableOffset = 0;
+    quint64 modelRevision = 0;
     friend class AccessibleAbstractTableViewCell;
     friend class AccessibleAbstractTableViewCellTitle;
     std::vector<duint> m_visibleColumns;
@@ -31,7 +34,8 @@ public:
     bool isValid() const override;
     QAccessible::State state() const override;
     void* interface_cast(QAccessible::InterfaceType type) override;
-    // QAccessibleTableInterface
+    // QAccessibleTableInterface. Rows and columns are zero-based data coordinates;
+    // column headers are separate children and are not part of rowCount().
     QAccessibleInterface* caption() const override;
     QAccessibleInterface* cellAt(int row, int column) const override;
     int columnCount() const override;
@@ -56,11 +60,16 @@ protected:
     virtual QString getCellContent(int row, int col) const; // Get plain text of a cell
     AbstractTableView* m_tableView;
 private:
-    QAccessible::Id & cellArray(int row, int col); // Get reference of accessible id, throws std::out_of_range exception
-    const QAccessible::Id & cellArray(int row, int col) const;
-    void updateVisibleColumns();
-    int physicalColumnFromLogical(int logicalColumn) const;
+    void clearChildInterfaces();
+    std::vector<duint> visibleColumns() const;
+    int visibleRowCount() const;
+    bool modelIsCurrent() const;
     void ensureModelUpToDate() const;
+    QAccessibleInterface* cellInterface(int row, int column) const;
+    QAccessibleInterface* columnHeaderInterface(int column) const;
+    QRect elementRect(int row, int column, bool header) const;
+    bool cellIsValid(int row, int column) const;
+    bool headerIsValid(int column) const;
 };
 
 #endif

@@ -5,14 +5,14 @@
 
 class AccessibleAbstractTableView;
 
-class AccessibleAbstractTableViewCell : public QAccessibleInterface, QAccessibleTableCellInterface
+class AccessibleAbstractTableViewCell : public QAccessibleInterface, public QAccessibleTableCellInterface
 {
 protected:
-    duint row; // The first visible row is index 0. Off by 1 compared with AccessibleAbstractTableView row due to column titles.
+    int row; // Zero-based visible data row; column headers are separate children.
     int column;
     AccessibleAbstractTableView* mParent;
 public:
-    AccessibleAbstractTableViewCell(AccessibleAbstractTableView* parent, duint row, int column);
+    AccessibleAbstractTableViewCell(AccessibleAbstractTableView* parent, int row, int column);
     // QAccessibleInterface
     QString text(QAccessible::Text t) const override;
     QColor foregroundColor() const override;

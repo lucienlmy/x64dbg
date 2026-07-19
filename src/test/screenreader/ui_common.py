@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, Optional
 
 from pywinauto import Desktop
 from pywinauto.controls.uiawrapper import UIAWrapper
+from pywinauto.uia_element_info import UIAElementInfo
 
 
 @dataclass
@@ -12,6 +16,11 @@ class WindowMatch:
     index: int
     title: str
     window: UIAWrapper
+
+
+def wrap_uia_element(element) -> UIAWrapper:
+    """Wrap a raw IUIAutomationElement returned by a UIA pattern."""
+    return UIAWrapper(UIAElementInfo(element))
 
 
 def iter_descendants(element: UIAWrapper) -> Iterable[UIAWrapper]:
@@ -31,29 +40,58 @@ def supports_grid(element: UIAWrapper) -> bool:
         return False
 
 
+def _process_executable(process_id: int) -> Optional[str]:
+    process_query_limited_information = 0x1000
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.QueryFullProcessImageNameW.argtypes = [
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        wintypes.LPWSTR,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+    process = kernel32.OpenProcess(
+        process_query_limited_information, False, process_id
+    )
+    if not process:
+        return None
+    try:
+        capacity = wintypes.DWORD(32768)
+        buffer = ctypes.create_unicode_buffer(capacity.value)
+        if not kernel32.QueryFullProcessImageNameW(
+            process, 0, buffer, ctypes.byref(capacity)
+        ):
+            return None
+        return Path(buffer.value).name.lower()
+    finally:
+        kernel32.CloseHandle(process)
+
+
 def list_matching_windows(title_hint: Optional[str]) -> list[WindowMatch]:
     desktop = Desktop(backend="uia")
-    windows = desktop.windows()
-    patterns = (
-        [title_hint] if title_hint else ["- x64dbg", "- x32dbg", "x64dbg", "x32dbg"]
-    )
-    matched = []
-    for pattern in patterns:
-        title_hint_lower = pattern.lower()
-        matched = [
-            window
-            for window in windows
-            if title_hint_lower in (window.window_text() or "").lower()
-        ]
-        if matched:
-            break
-    windows = matched
-    matches = []
-    for index, window in enumerate(windows):
-        matches.append(
-            WindowMatch(index=index, title=window.window_text(), window=window)
-        )
-    return matches
+    debugger_executables = {"x64dbg.exe", "x32dbg.exe"}
+    title_hint_lower = title_hint.lower() if title_hint else None
+    windows = []
+    for window in desktop.windows():
+        try:
+            executable = _process_executable(window.element_info.process_id)
+        except (OSError, ValueError):
+            continue
+        if executable not in debugger_executables:
+            continue
+        title = window.window_text() or ""
+        if title_hint_lower and title_hint_lower not in title.lower():
+            continue
+        windows.append(window)
+
+    return [
+        WindowMatch(index=index, title=window.window_text(), window=window)
+        for index, window in enumerate(windows)
+    ]
 
 
 def select_window(

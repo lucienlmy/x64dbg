@@ -1,52 +1,53 @@
-// This file implements accessibility interface for title row of AbstractTableView
+// This file implements accessibility interface for the column headers of AbstractTableView
 #ifndef QT_NO_ACCESSIBILITY
 #include "AccessibleAbstractTableViewCellTitle.h"
 #include "AccessibleAbstractTableView.h"
 
-AccessibleAbstractTableViewCellTitle::AccessibleAbstractTableViewCellTitle(AccessibleAbstractTableView* parent, int column) : AccessibleAbstractTableViewCell(parent, 0, column)
+AccessibleAbstractTableViewCellTitle::AccessibleAbstractTableViewCellTitle(AccessibleAbstractTableView* parent, int column)
+    : AccessibleAbstractTableViewCell(parent, -1, column)
 {
 }
 
 QString AccessibleAbstractTableViewCellTitle::text(QAccessible::Text t) const
 {
-    AbstractTableView* w = mParent->getTable();
-    if(t == QAccessible::Value)
-    {
-        return w->getColTitle(mParent->logicalColumn(column));
-    }
+    if(!isValid())
+        return QString();
+    if(t == QAccessible::Name)
+        return mParent->getTable()->getColTitle(mParent->logicalColumn(column));
     return QString();
 }
 
 QColor AccessibleAbstractTableViewCellTitle::foregroundColor() const
 {
-    return mParent->getTable()->mHeaderTextColor;
+    return isValid() ? mParent->getTable()->mHeaderTextColor : QColor();
 }
 
 QColor AccessibleAbstractTableViewCellTitle::backgroundColor() const
 {
-    return mParent->getTable()->mHeaderBackgroundColor;
+    return isValid() ? mParent->getTable()->mHeaderBackgroundColor : QColor();
 }
 
 QAccessible::State AccessibleAbstractTableViewCellTitle::state() const
 {
-    QAccessible::State state;
-    state.focusable = mParent->getTable()->getRowCount() > 0;
-    state.active = state.focusable;
-    state.selectable = false;
-    state.selected = false;
-    state.focused = false;
-    state.readOnly = true;
-    state.invisible = mParent->getTable()->getHeaderHeight() == 0;
-    return state;
+    QAccessible::State result;
+    if(!isValid())
+    {
+        result.invalid = true;
+        return result;
+    }
+
+    const AbstractTableView* table = mParent->getTable();
+    const bool visible = !rect().isEmpty();
+    result.disabled = !table->isEnabled();
+    result.readOnly = true;
+    result.invisible = table->getHeaderHeight() == 0 || !table->isVisible() || !visible;
+    result.offscreen = !visible;
+    return result;
 }
 
 QRect AccessibleAbstractTableViewCellTitle::rect() const
 {
-    const auto table = mParent->getTable();
-    int height = table->getHeaderHeight();
-    QPoint pos(table->getColumnPosition(column), 0);
-    pos = table->mapToGlobal(pos);
-    return QRect(pos, QSize(table->getColumnWidth(mParent->logicalColumn(column)), height));
+    return mParent ? mParent->elementRect(-1, column, true) : QRect();
 }
 
 QAccessible::Role AccessibleAbstractTableViewCellTitle::role() const
@@ -56,7 +57,19 @@ QAccessible::Role AccessibleAbstractTableViewCellTitle::role() const
 
 int AccessibleAbstractTableViewCellTitle::rowIndex() const
 {
-    return 0;
+    return -1;
+}
+
+bool AccessibleAbstractTableViewCellTitle::isValid() const
+{
+    return mParent && mParent->headerIsValid(column);
+}
+
+void* AccessibleAbstractTableViewCellTitle::interface_cast(QAccessible::InterfaceType type)
+{
+    Q_UNUSED(type);
+    // Headers are separate structural children, not cells in the data grid.
+    return nullptr;
 }
 
 QList<QAccessibleInterface*> AccessibleAbstractTableViewCellTitle::rowHeaderCells() const
@@ -66,7 +79,7 @@ QList<QAccessibleInterface*> AccessibleAbstractTableViewCellTitle::rowHeaderCell
 
 QList<QAccessibleInterface*> AccessibleAbstractTableViewCellTitle::columnHeaderCells() const
 {
-    return QList<QAccessibleInterface*>({(QAccessibleInterface*)this});
+    return QList<QAccessibleInterface*>({const_cast<AccessibleAbstractTableViewCellTitle*>(this)});
 }
 
 #endif
