@@ -255,17 +255,32 @@ def content_signature(snapshot: dict[str, Any]) -> tuple[tuple[str, str, str], .
 
 
 def activate_tab(app: Any, name: str) -> None:
-    locator = app.locator(f"tab[name='{name}']")
-    locator.wait_visible(timeout=10.0)
-    try:
-        locator.press()
-    except Exception:
-        # Some platform bridges expose tabs as selectable but not pressable.
+    # Qt's Cocoa bridge exposes QTabBar tabs as AXRadioButton on current Qt 6,
+    # while other backends and older captures normalize them as `tab`.
+    roles = (
+        ("radio_button", "tab")
+        if sys.platform == "darwin"
+        else ("tab", "radio_button")
+    )
+    last_error: Exception | None = None
+    for role in roles:
+        locator = app.locator(f"{role}[name='{name}']")
         try:
-            locator.select()
-        except Exception:
-            xa11y.input_sim().click(locator.element())
-    time.sleep(0.3)
+            locator.wait_visible(timeout=10.0)
+            try:
+                locator.press()
+            except Exception:
+                # Some platform bridges expose tabs as selectable but not pressable.
+                try:
+                    locator.select()
+                except Exception:
+                    xa11y.input_sim().click(locator.element())
+            time.sleep(0.3)
+            return
+        except Exception as exc:
+            last_error = exc
+    assert last_error is not None
+    raise last_error
 
 
 def event_summary(event: Any) -> dict[str, Any]:
