@@ -93,6 +93,12 @@ def timeout_output(output: str | bytes | None) -> str:
     return output or ""
 
 
+def process_exit_reason(prefix: str, returncode: int) -> str:
+    if os.name == "nt" and (returncode < 0 or returncode > 0xFF):
+        return f"{prefix}_0x{returncode & 0xFFFFFFFF:08X}"
+    return f"{prefix}_{returncode}"
+
+
 def parse_test_variant(script_name: str) -> str | None:
     if not script_name.startswith("test") or not script_name.endswith(".txt"):
         return None
@@ -318,7 +324,7 @@ def run_driver_test(headless: Path, test: TestCase, timeout: int, artifact_dir: 
     if completed.returncode != 0:
         passed = False
         if reason in {"pass", "missing_final"}:
-            reason = f"driver_exit_{completed.returncode}"
+            reason = process_exit_reason("driver_exit", completed.returncode)
     if passed and test.fallback_check is not None:
         passed, reason = run_fallback_check(test.fallback_check, log_path, userdir, test.runtime_dir, artifact_dir)
 
@@ -382,7 +388,7 @@ def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, 
     if completed.returncode != 0:
         passed = False
         if reason == "pass":
-            reason = f"process_exit_{completed.returncode}"
+            reason = process_exit_reason("process_exit", completed.returncode)
     if passed and test.fallback_check is not None:
         passed, reason = run_fallback_check(test.fallback_check, log_path, userdir, test.runtime_dir, artifact_dir)
 

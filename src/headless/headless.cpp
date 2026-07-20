@@ -23,9 +23,10 @@ static int curScriptId = 0;
 static bool dbgStopped = false;
 static DWORD dwGuiThreadId = 0;
 static moodycamel::BlockingConcurrentQueue<std::function<bool()>> queue;
+static constexpr DWORD NoShutdownCtrlType = MAXDWORD;
 static std::atomic<bool> shutdownRequested{ false };
 static std::atomic<bool> consoleCloseRequested{ false };
-static std::atomic<DWORD> shutdownCtrlType{ 0 };
+static std::atomic<DWORD> shutdownCtrlType{ NoShutdownCtrlType };
 static std::atomic<HANDLE> commandThreadHandle{ nullptr };
 static std::mutex redirectLogMutex;
 static FILE* redirectLogFile = nullptr;
@@ -141,7 +142,7 @@ extern "C" __declspec(dllexport) int _gui_guiinit(int argc, char* argv[])
 
     shutdownRequested = false;
     consoleCloseRequested = false;
-    shutdownCtrlType = 0;
+    shutdownCtrlType = NoShutdownCtrlType;
     commandThreadHandle = nullptr;
 
     // Init debugger
@@ -492,6 +493,11 @@ extern "C" __declspec(dllexport) const char* _gui_translate_text(const char* sou
 
 int main(int argc, char* argv[])
 {
+    // GitHub Actions and other Node-based parents can set
+    // SEM_NOGPFAULTERRORBOX. Clear it so WER LocalDumps can capture an
+    // unhandled headless crash without showing legacy hard-error dialogs.
+    SetErrorMode(SEM_FAILCRITICALERRORS);
+
     dwGuiThreadId = GetCurrentThreadId();
 
     // Construct user directory from executable name

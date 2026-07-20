@@ -46,6 +46,7 @@ TraceBrowser::TraceBrowser(TraceFileReader* traceFile, TraceWidget* parent) : Ab
     setupRightClickContextMenu();
 
     Initialize();
+    tokenizerConfigUpdatedSlot();
 
     connect(Bridge::getBridge(), SIGNAL(updateTraceBrowser()), this, SLOT(updateSlot()));
     connect(Bridge::getBridge(), SIGNAL(gotoTraceIndex(duint)), this, SLOT(gotoIndexSlot(duint)));
