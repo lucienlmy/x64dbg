@@ -628,12 +628,15 @@ void AppearanceDialog::colorInfoListInit()
     colorInfoListAppend(tr("Symbol Loading Text"), "SymbolLoadingTextColor", "");
     colorInfoListAppend(tr("Symbol Loaded Text"), "SymbolLoadedTextColor", "");
     colorInfoListAppend(tr("Link color"), "LinkColor", "");
-    colorInfoListAppend(tr("Address Color (Red)"), "AddressColorPresetRed", "");
-    colorInfoListAppend(tr("Address Color (Green)"), "AddressColorPresetGreen", "");
-    colorInfoListAppend(tr("Address Color (Blue)"), "AddressColorPresetBlue", "");
-    colorInfoListAppend(tr("Address Color (Yellow)"), "AddressColorPresetYellow", "");
-    colorInfoListAppend(tr("Address Color (Orange)"), "AddressColorPresetOrange", "");
-    colorInfoListAppend(tr("Address Color (Purple)"), "AddressColorPresetPurple", "");
+    duint addressColorCount = ConfigUint("Colors", "AddressColorCount");
+    for(duint i = 0; i < addressColorCount; i++)
+    {
+        char addressColor[MAX_SETTING_SIZE] = "";
+        if(BridgeSettingGet("Colors", QString("AddressColor%1").arg(i).toUtf8().constData(), addressColor))
+        {
+            colorInfoListAppend(tr("Address Color %1").arg(i + 1), QString("AddressColor%1").arg(i), "");
+        }
+    }
 
     colorInfoIndex = 0;
 

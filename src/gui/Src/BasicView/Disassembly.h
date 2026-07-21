@@ -96,7 +96,7 @@ public:
     bool followInstruction(duint rva);
 
     //color
-    void setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
+    void setAddressColor(duint vaStart, duint vaEnd, unsigned int preset);
     void clearAddressColor(duint vaStart, duint vaEnd);
 signals:
     void selectionChanged(duint va);
@@ -244,7 +244,7 @@ protected:
     QColor mLoopColor;
     QColor mFunctionColor;
 
-    QColor mAddressColorPresets[addresscolor_purple + 1];
+    std::vector<QColor> mAddressColorPresets;
 
     QPen mLoopPen;
     QPen mFunctionPen;

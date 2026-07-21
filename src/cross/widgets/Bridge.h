@@ -52,17 +52,6 @@ typedef enum
 
 typedef enum
 {
-    addresscolor_none = 0,
-    addresscolor_red,
-    addresscolor_green,
-    addresscolor_blue,
-    addresscolor_yellow,
-    addresscolor_orange,
-    addresscolor_purple,
-} ADDRESSCOLORPRESET;
-
-typedef enum
-{
     LOOP_NONE,
     LOOP_BEGIN,
     LOOP_MIDDLE,

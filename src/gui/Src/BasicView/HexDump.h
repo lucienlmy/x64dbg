@@ -141,7 +141,7 @@ public:
     VaHistory mHistory;
 
     //color
-    void setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset);
+    void setAddressColor(duint vaStart, duint vaEnd, unsigned int preset);
     void clearAddressColor(duint vaStart, duint vaEnd);
 signals:
     void selectionUpdated();
@@ -191,7 +191,7 @@ private:
     QColor mByteIsPrintColor;
     QColor mByteIsPrintBackgroundColor;
 
-    QColor mAddressColorPresets[addresscolor_purple + 1];
+    std::vector<QColor> mAddressColorPresets;
 
     QColor mUserModuleCodePointerHighlightColor;
     QColor mUserModuleDataPointerHighlightColor;

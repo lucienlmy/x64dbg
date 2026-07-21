@@ -94,18 +94,19 @@ void HexDump::updateColors()
     mUnknownCodePointerHighlightColor = ConfigColor("HexDumpUnknownCodePointerHighlightColor");
     mUnknownDataPointerHighlightColor = ConfigColor("HexDumpUnknownDataPointerHighlightColor");
 
-    mAddressColorPresets[addresscolor_none] = Qt::transparent;
-    mAddressColorPresets[addresscolor_red] = ConfigColor("AddressColorPresetRed");
-    mAddressColorPresets[addresscolor_green] = ConfigColor("AddressColorPresetGreen");
-    mAddressColorPresets[addresscolor_blue] = ConfigColor("AddressColorPresetBlue");
-    mAddressColorPresets[addresscolor_yellow] = ConfigColor("AddressColorPresetYellow");
-    mAddressColorPresets[addresscolor_orange] = ConfigColor("AddressColorPresetOrange");
-    mAddressColorPresets[addresscolor_purple] = ConfigColor("AddressColorPresetPurple");
-    duint addressColorAlpha = ConfigUint("Disassembler", "AddressColorAlpha");
-    if(addressColorAlpha > 255)
-        addressColorAlpha = 255;
-    for(int i = addresscolor_red; i <= addresscolor_purple; i++)
-        mAddressColorPresets[i].setAlpha(addressColorAlpha);
+    duint addressColorCount = ConfigUint("Colors", "AddressColorCount");
+    duint addressColorAlpha = ConfigUint("Colors", "AddressColorAlpha");
+    mAddressColorPresets.assign(addressColorCount + 1, QColor(Qt::transparent));
+    for(duint i = 0; i < addressColorCount; i++)
+    {
+        char addressColor[MAX_SETTING_SIZE] = "";
+        if(BridgeSettingGet("Colors", QString("AddressColor%1").arg(i).toUtf8().constData(), addressColor))
+        {
+            QColor color = QColor(addressColor);
+            color.setAlpha(addressColorAlpha);
+            mAddressColorPresets[i + 1] = color;
+        }
+    }
 
     reloadData();
 }
@@ -884,7 +885,7 @@ void HexDump::printBackground(QPainter* painter, duint row, duint col, int x, in
                 backgroundColor = mSelectionColor;
 
             unsigned int linePreset;
-            if(DbgGetAddressColorAt(rvaToVa(itemRva), &linePreset))
+            if(DbgGetAddressColorAt(rvaToVa(itemRva), &linePreset) && linePreset < mAddressColorPresets.size())
             {
                 const QColor & color = mAddressColorPresets[linePreset];
                 backgroundColor = QColor(
@@ -1766,7 +1767,7 @@ int HexDump::accessibilitySelectedRow() const
         return -1;
 }
 
-void HexDump::setAddressColor(duint vaStart, duint vaEnd, ADDRESSCOLORPRESET preset)
+void HexDump::setAddressColor(duint vaStart, duint vaEnd, unsigned int preset)
 {
     for(duint va = vaStart; va <= vaEnd; va++)
         DbgSetAddressColorAt(va, preset);

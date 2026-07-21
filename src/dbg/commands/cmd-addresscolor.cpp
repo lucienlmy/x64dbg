@@ -2,30 +2,19 @@
 #include "addresscolor.h"
 #include "value.h"
 #include "console.h"
-#include <unordered_map>
 
-static const std::unordered_map<std::string, duint> presetMap =
+static duint parsePreset(const char* presetStr)
 {
-    { "red",    addresscolor_red },
-    { "green",  addresscolor_green },
-    { "blue",   addresscolor_blue },
-    { "yellow", addresscolor_yellow },
-    { "orange", addresscolor_orange },
-    { "purple", addresscolor_purple },
-};
+    duint count = 0;
+    if(!BridgeSettingGetUint("Colors", "AddressColorCount", &count) || count == 0)
+        count = 6;
 
-static duint parsePreset(const char* colorStr)
-{
-    std::string lower(colorStr);
-    for(auto & c : lower)
-        c = tolower(c);
+    duint preset = DbgValFromString(presetStr);
+    if(preset >= 1 && preset <= count)
+        return preset;
 
-    auto it = presetMap.find(lower);
-    if(it != presetMap.end())
-        return it->second;
-
-    dprintf(QT_TRANSLATE_NOOP("DBG", "Invalid color '%s' (expected: red, green, blue, yellow, orange, purple)\n"), colorStr);
-    return addresscolor_none;
+    dprintf(QT_TRANSLATE_NOOP("DBG", "Invalid color preset '%s' (expected: 1-%u)\n"), presetStr, (unsigned int)count);
+    return 0;
 }
 
 bool cbDebugAddressColorSet(int argc, char* argv[])
@@ -50,7 +39,7 @@ bool cbDebugAddressColorSet(int argc, char* argv[])
         end = sel.end;
         preset = parsePreset(argv[1]);
     }
-    if(preset == addresscolor_none)
+    if(preset == 0)
         return false;
     bool ok = false;
     for(duint addr = start; addr <= end; addr++)
@@ -68,7 +57,7 @@ bool cbDebugAddressColorSetRange(int argc, char* argv[])
     duint start = DbgValFromString(argv[1]);
     duint end = DbgValFromString(argv[2]);
     duint preset = parsePreset(argv[3]);
-    if(preset == addresscolor_none)
+    if(preset == 0)
         return false;
 
     for(duint addr = start; addr <= end; addr++)

@@ -1245,17 +1245,6 @@ BRIDGE_IMPEXP DEBUG_ENGINE DbgGetDebugEngine();
 BRIDGE_IMPEXP bool DbgGetSymbolInfoAt(duint addr, SYMBOLINFO* info);
 BRIDGE_IMPEXP duint DbgXrefAddMulti(const XREF_EDGE* edges, duint count);
 BRIDGE_IMPEXP void DbgUpdateGui(duint disasm_addr, bool stack);
-typedef enum
-{
-    addresscolor_none = 0,
-    addresscolor_red,
-    addresscolor_green,
-    addresscolor_blue,
-    addresscolor_yellow,
-    addresscolor_orange,
-    addresscolor_purple,
-} ADDRESSCOLORPRESET;
-
 BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
 BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int preset);
 BRIDGE_IMPEXP void DbgDelAddressColorRange(duint start, duint end);

@@ -8,7 +8,7 @@ Set the background color for a range of addresses.
 
 `arg2` End address of the range.
 
-`arg3` Color preset: `red`, `green`, `blue`, `yellow`, `orange`, `purple`. The actual colors can be customized in the Appearance dialog.
+`arg3` Color preset: a number from `1` to the configured color count (`AddressColorCount`, default `6`). The actual colors can be customized in the Appearance dialog (`Address Color 1` .. `Address Color N`).
 
 ## result
 

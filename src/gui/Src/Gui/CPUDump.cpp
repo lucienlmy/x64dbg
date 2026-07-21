@@ -90,24 +90,19 @@ void CPUDump::setupContextMenu()
         return getSizeOf(d.itemSize) <= sizeof(duint) || (d.itemSize == 4 && d.dwordMode == FloatDword || d.itemSize == 8 && d.qwordMode == DoubleQword);
     });
 
-    const QVector<QPair<QString, ADDRESSCOLORPRESET>> linePresets =
-    {
-        { "Red", addresscolor_red },
-        { "Green", addresscolor_green },
-        { "Blue", addresscolor_blue },
-        { "Yellow", addresscolor_yellow },
-        { "Orange", addresscolor_orange },
-        { "Purple", addresscolor_purple },
-    };
-
+    duint addressColorCount = ConfigUint("Colors", "AddressColorCount");
     MenuBuilder* colorMenu = new MenuBuilder(this);
-    for(const auto & preset : linePresets)
+    for(duint i = 0; i < addressColorCount; i++)
     {
-        QAction* action = makeAction(ColorIcon(ConfigColor("AddressColorPreset" + preset.first)), tr(preset.first.toUtf8().constData()), SLOT(setAddressColorSlot()));
-        action->setData(preset.second);
-        colorMenu->addAction(action);
+        char addressColor[MAX_SETTING_SIZE] = "";
+        if(BridgeSettingGet("Colors", QString("AddressColor%1").arg(i).toUtf8().constData(), addressColor))
+        {
+            QAction* action = makeActionColor(QColor(addressColor), SLOT(setAddressColorSlot()));
+            action->setData(uint(i + 1));
+            colorMenu->addAction(action);
+        }
     }
-    colorMenu->addAction(makeAction(tr("Clear"), SLOT(clearAddressColorSlot())));
+    colorMenu->addAction(makeAction(DIcon("eraser"), tr("Clear"), SLOT(clearAddressColorSlot())));
     mMenuBuilder->addMenu(makeMenu(DIcon("color-swatches"), tr("Color")), colorMenu);
 
     MenuBuilder* breakpointMenu = new MenuBuilder(this);
@@ -1740,7 +1735,7 @@ void CPUDump::setAddressColorSlot()
     if(!action)
         return;
 
-    ADDRESSCOLORPRESET preset = ADDRESSCOLORPRESET(action->data().toInt());
+    unsigned int preset = action->data().toUInt();
     setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
 
     GuiUpdateAllViews();
