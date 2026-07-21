@@ -2,7 +2,6 @@
 #ifndef QT_NO_ACCESSIBILITY
 #include "AccessibleRegistersView.h"
 #include "StringUtil.h"
-#include <algorithm>
 
 static QRect widgetGlobalRect(const QWidget* widget)
 {
@@ -205,32 +204,18 @@ AccessibleRegistersView::~AccessibleRegistersView()
 
 std::vector<RegistersView::REGISTER_NAME> AccessibleRegistersView::registerOrder() const
 {
-    // REGISTER_NAME groups storage identities, not presentation order. The
-    // visible layout also changes with x87/MMX and AVX-512 display modes, so
-    // derive child order from the same geometry used for painting and hit tests.
     std::vector<RegistersView::REGISTER_NAME> result;
     if(!m_registersView)
         return result;
 
     result.reserve(m_registersView->mRegisterPlaces.size());
-    for(auto it = m_registersView->mRegisterPlaces.cbegin(); it != m_registersView->mRegisterPlaces.cend(); ++it)
+    for(int index = 0; index < static_cast<int>(RegistersView::UNKNOWN); index++)
     {
-        const int registerIndex = static_cast<int>(it.key());
-        if(registerIndex >= 0
-                && registerIndex < static_cast<int>(RegistersView::UNKNOWN)
-                && m_registersView->mRegisterMapping.contains(it.key()))
-            result.push_back(it.key());
+        const auto reg = static_cast<RegistersView::REGISTER_NAME>(index);
+        if(m_registersView->mRegisterPlaces.contains(reg)
+                && m_registersView->mRegisterMapping.contains(reg))
+            result.push_back(reg);
     }
-    std::sort(result.begin(), result.end(), [this](RegistersView::REGISTER_NAME left, RegistersView::REGISTER_NAME right)
-    {
-        const auto & leftPosition = m_registersView->mRegisterPlaces[left];
-        const auto & rightPosition = m_registersView->mRegisterPlaces[right];
-        if(leftPosition.line != rightPosition.line)
-            return leftPosition.line < rightPosition.line;
-        if(leftPosition.start != rightPosition.start)
-            return leftPosition.start < rightPosition.start;
-        return static_cast<int>(left) < static_cast<int>(right);
-    });
     return result;
 }
 
