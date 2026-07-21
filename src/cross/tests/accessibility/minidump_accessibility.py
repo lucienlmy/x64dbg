@@ -32,6 +32,7 @@ class ControlSpec:
     expected_names: tuple[str, ...]
     minimum_children: int
     minimum_named_children: int = 1
+    expected_order: tuple[str, ...] = ()
     exercise_scroll: bool = False
     exercise_selection: bool = False
 
@@ -99,6 +100,16 @@ TAB_SPECS = (
                 "list[name='Registers']",
                 ("RAX", "RSP", "RIP"),
                 10,
+                expected_order=(
+                    "RAX",
+                    "RBX",
+                    "RCX",
+                    "RDX",
+                    "RBP",
+                    "RSP",
+                    "RSI",
+                    "RDI",
+                ),
                 exercise_selection=True,
             ),
         ),
@@ -426,8 +437,16 @@ def selectable_descendants(element: Any, depth: int = 2) -> list[Any]:
         following = []
         for parent in current:
             for child in parent.children():
+                # xa11y 0.11.0 normalizes Windows UIA DataItem controls as
+                # table_row even when GridItem/TableItem identify them as cells.
+                # Accept that known backend role here so selection remains an
+                # end-to-end action test instead of duplicating the role bug.
+                is_selectable_item = child.role in ("table_cell", "list_item") or (
+                    child.role == "table_row"
+                    and child.raw.get("control_type_id") == 50029
+                )
                 if (
-                    child.role in ("table_cell", "list_item")
+                    is_selectable_item
                     and child.visible
                     and child.bounds is not None
                     and child.bounds.width > 0
@@ -699,6 +718,33 @@ def main() -> int:
                         )
                     else:
                         add_check(checks, found, message, args.strict)
+
+                if control_spec.expected_order:
+                    try:
+                        direct_names = [
+                            child.name or "" for child in element.children()
+                        ]
+                    except Exception:
+                        direct_names = []
+                    expected_positions = [
+                        next(
+                            (
+                                index
+                                for index, name in enumerate(direct_names)
+                                if name == expected
+                                or name.startswith(expected + " =")
+                            ),
+                            -1,
+                        )
+                        for expected in control_spec.expected_order
+                    ]
+                    add_check(
+                        checks,
+                        all(position >= 0 for position in expected_positions)
+                        and expected_positions == sorted(expected_positions),
+                        f"{control_spec.selector} exposes registers in visual order",
+                        args.strict,
+                    )
 
                 bounds = snapshot.get("bounds")
                 add_check(

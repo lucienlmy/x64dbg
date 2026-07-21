@@ -198,13 +198,65 @@ def _check_headers(
             except Exception as exc:
                 failures.append(f"Cell (0,{col}) header relation failed: {exc}")
 
+    row_headers: list[UIAWrapper] = []
+    if rows > 0 and cols > 0:
+        try:
+            row_header_array = table.iface_table.GetCurrentRowHeaders()
+            row_headers = [
+                wrap_uia_element(row_header_array.GetElement(index))
+                for index in range(int(row_header_array.Length))
+            ]
+        except Exception as exc:
+            failures.append(f"Table row-header query failed: {exc}")
+        if len(row_headers) != rows:
+            failures.append(
+                f"TablePattern returned {len(row_headers)} row headers for {rows} rows"
+            )
+        row_header_ids: set[tuple[int, ...]] = set()
+        for row, row_header in enumerate(row_headers):
+            row_header_id = _runtime_id(row_header)
+            if not row_header_id:
+                failures.append(f"Row header {row} has no runtime ID")
+            elif row_header_id in row_header_ids:
+                failures.append(f"Row header {row} reuses runtime ID {row_header_id}")
+            else:
+                row_header_ids.add(row_header_id)
+            if row_header.element_info.control_type not in {"Header", "HeaderItem"}:
+                failures.append(
+                    f"Row header {row} has type "
+                    f"{row_header.element_info.control_type!r}"
+                )
+            if row < len(grid_items) and grid_items[row]:
+                if _same_element(row_header, grid_items[row][0]):
+                    failures.append(f"Row header {row} reuses its first data cell")
+                for col, item in enumerate(grid_items[row]):
+                    try:
+                        header_array = item.iface_table_item.GetCurrentRowHeaderItems()
+                        cell_headers = [
+                            wrap_uia_element(header_array.GetElement(index))
+                            for index in range(int(header_array.Length))
+                        ]
+                        if len(cell_headers) != 1 or not _same_element(
+                            cell_headers[0], row_header
+                        ):
+                            failures.append(
+                                f"Cell ({row},{col}) does not reference row header {row}"
+                            )
+                    except Exception as exc:
+                        failures.append(
+                            f"Cell ({row},{col}) row-header relation failed: {exc}"
+                        )
+
     if failures:
         return headers, CheckResult(False, "; ".join(failures[:8]))
     if rows == 0:
         return headers, CheckResult(
             True, "Header relation check skipped because the Grid has no data rows."
         )
-    return headers, CheckResult(True, f"Header relations OK ({len(headers)} headers).")
+    return headers, CheckResult(
+        True,
+        f"Header relations OK ({len(headers)} column, {len(row_headers)} row).",
+    )
 
 
 def _check_child_navigation(

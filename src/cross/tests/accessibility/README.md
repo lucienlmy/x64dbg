@@ -23,9 +23,10 @@ The script activates every minidump tab and covers every interface supplied by
 | Disassembly | `AccessibleDisassembly` |
 | Registers | `AccessibleRegistersView` |
 
-This also exercises `AccessibleAbstractTableView`, its virtual data cells and
-column headers, native parent/child navigation, names, bounds, focus, selection,
-and model resets caused by scrolling. The Threads `QTableWidget` is captured as
+This also exercises `AccessibleAbstractTableView`, its virtual data cells,
+column headers, dedicated hidden row headers, native parent/child navigation,
+names, bounds, focus, selection, register visual order, and model resets caused
+by scrolling. The Threads `QTableWidget` is captured as
 a native Qt-table comparison.
 
 The first runs intentionally produce rich platform-specific captures. Use
@@ -132,7 +133,9 @@ The output directory contains:
 - `minidump.stdout.log` and `minidump.stderr.log`.
 
 xa11y currently normalizes Qt/UIA DataItem cells as `table_row` on Windows.
-Linux exposes the corresponding objects directly as `table_cell`; macOS exposes
+The action check recognizes those native DataItems so this known normalization
+bug does not prevent testing real cell selection. Linux exposes the
+corresponding objects directly as `table_cell`; macOS exposes
 `AXRow` containers with nested `AXCell`/`table_cell` objects. The underlying
 x64dbg child layout deliberately follows Qt's native accessible table contract;
 the capture records both normalized roles and native `raw` fields so these

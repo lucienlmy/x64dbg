@@ -88,6 +88,15 @@ def list_matching_windows(title_hint: Optional[str]) -> list[WindowMatch]:
             continue
         windows.append(window)
 
+    # UIA desktop enumeration order is not stable between calls. Both the CLI
+    # validation and select_window() enumerate, so sort before assigning indexes
+    # or --window-index can select a different process than --list-windows showed.
+    windows.sort(
+        key=lambda window: (
+            int(window.element_info.process_id),
+            window.window_text() or "",
+        )
+    )
     return [
         WindowMatch(index=index, title=window.window_text(), window=window)
         for index, window in enumerate(windows)

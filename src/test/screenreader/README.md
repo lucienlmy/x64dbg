@@ -41,14 +41,31 @@ The checker validates:
   GridItem row/column and containing Grid round-trip correctly.
 - A populated table exposes one column-header relation per column, and every
   first-row cell points to the corresponding header.
-- Visible cells/headers participate in direct child navigation and point back to
-  the table.
+- Every row has a distinct, hidden row-header object and all cells in that row
+  reference it. The first data cell is never repurposed as the header.
+- Visible cells/column headers participate in direct child navigation and point
+  back to the table; hidden row headers remain available through TablePattern.
 - Hit-testing the center of visible headers and first-row cells returns that
   exact UIA element.
 - UIA Name properties can be queried for all cells and headers.
 
 The script exits non-zero on a contract failure. `--max-cells` limits work for
 unexpectedly large grids.
+
+## Live event checks
+
+With a live debug target paused, the event checker logs a unique marker and
+single-steps once through the debugger Command Bar:
+
+```powershell
+uv run x64dbg-screenreader-event-checks
+```
+
+It listens through native UIA and requires `ValueChanged` payloads for the log
+message, `Running` and `Paused` debug states, and the updated `EIP`/`RIP` list
+item. These are the passive live-region events consumed by Microsoft Narrator;
+a QLabel `NameChanged` event alone is not announced. The command intentionally
+advances the debug target by one instruction.
 
 ## Capture visible contents
 
@@ -80,7 +97,7 @@ output file includes the corresponding `ERROR:` section.
   `--window-index`.
 - Empty tables can validate Grid structure but cannot expose header relations
   through Qt's UIA Table provider until at least one data row exists.
-- These scripts do not yet capture UIA events or automate scrolling/model-reset
-  transitions. Those still require a deliberate manual scenario.
+- Table scrolling/model-reset transitions still require a deliberate manual
+  scenario. The event checker automates only one instruction step.
 - macOS VoiceOver/Accessibility Inspector and Linux AT-SPI require separate
   platform-specific testing.

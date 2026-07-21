@@ -1479,7 +1479,9 @@ void AbstractTableView::accessibilitySelectionChanged()
             return false;
 
         QAccessibleEvent event(this, type);
-        event.setChild(columns + row * columns + column);
+        // Match QAccessibleTable's structural grid: hidden corner and column
+        // headers in row zero, then a hidden row header before each data row.
+        event.setChild((row + 1) * (columns + 1) + column + 1);
         QAccessible::updateAccessibility(&event);
         return true;
     };

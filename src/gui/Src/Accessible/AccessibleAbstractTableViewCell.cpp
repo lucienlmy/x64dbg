@@ -177,7 +177,11 @@ QList<QAccessibleInterface*> AccessibleAbstractTableViewCell::columnHeaderCells(
 
 QList<QAccessibleInterface*> AccessibleAbstractTableViewCell::rowHeaderCells() const
 {
-    // AbstractTableView does not paint or expose row headers.
+    AccessibleAbstractTableView* accessible = accessibleTable();
+    if(!belongsTo(accessible) || !accessible->cellIsValid(row, column))
+        return QList<QAccessibleInterface*>();
+    if(auto header = accessible->rowHeaderInterface(row))
+        return QList<QAccessibleInterface*>({header});
     return QList<QAccessibleInterface*>();
 }
 

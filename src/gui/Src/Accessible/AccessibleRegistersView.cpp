@@ -40,6 +40,7 @@ QString AccessibleRegistersViewItem::text(QAccessible::Text t) const
     switch(t)
     {
     case QAccessible::Name:
+    case QAccessible::Value:
     {
         const auto it = view->mRegisterMapping.constFind(id);
         if(it == view->mRegisterMapping.cend())
@@ -204,6 +205,9 @@ AccessibleRegistersView::~AccessibleRegistersView()
 
 std::vector<RegistersView::REGISTER_NAME> AccessibleRegistersView::registerOrder() const
 {
+    // REGISTER_NAME groups storage identities, not presentation order. The
+    // visible layout also changes with x87/MMX and AVX-512 display modes, so
+    // derive child order from the same geometry used for painting and hit tests.
     std::vector<RegistersView::REGISTER_NAME> result;
     if(!m_registersView)
         return result;

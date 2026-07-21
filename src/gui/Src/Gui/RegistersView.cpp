@@ -3548,10 +3548,13 @@ void RegistersView::accessibilityValueChanged()
     {
         if(auto item = accessible->interfaceForRegister(reg))
         {
-            // Register items expose their displayed "RAX = value" string as
-            // Name and do not implement a numeric QAccessibleValueInterface.
-            QAccessibleEvent nameChangeEvent(item, QAccessible::NameChanged);
-            QAccessible::updateAccessibility(&nameChangeEvent);
+            // Narrator listens for ValueChanged on register list items. The
+            // displayed value is textual (and may include a symbol), so expose
+            // the same string through QAccessible::Value without claiming a
+            // numeric QAccessibleValueInterface.
+            QAccessibleValueChangeEvent valueChangeEvent(
+                item, QVariant(item->text(QAccessible::Value)));
+            QAccessible::updateAccessibility(&valueChangeEvent);
         }
     }
 }
