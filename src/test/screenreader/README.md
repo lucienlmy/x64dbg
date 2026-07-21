@@ -54,18 +54,20 @@ unexpectedly large grids.
 
 ## Live event checks
 
-With a live debug target paused, the event checker logs a unique marker and
-single-steps once through the debugger Command Bar:
+With a live debug target paused, the event checker logs a unique marker,
+toggles and restores `CAX`, and single-steps once through the debugger Command
+Bar:
 
 ```powershell
 uv run x64dbg-screenreader-event-checks
 ```
 
 It listens through native UIA and requires `ValueChanged` payloads for the log
-message, `Running` and `Paused` debug states, and the updated `EIP`/`RIP` list
-item. These are the passive live-region events consumed by Microsoft Narrator;
-a QLabel `NameChanged` event alone is not announced. The command intentionally
-advances the debug target by one instruction.
+message, `Running` and `Paused` debug states, a general-purpose `EAX`/`RAX`
+register, and the updated `EIP`/`RIP` list item. These are the passive live-region
+events consumed by Microsoft Narrator; a QLabel `NameChanged` event alone is not
+announced. The command intentionally advances the debug target by one
+instruction.
 
 ## Capture visible contents
 

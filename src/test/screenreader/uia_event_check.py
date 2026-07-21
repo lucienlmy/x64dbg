@@ -20,6 +20,7 @@ import comtypes.gen.UIAutomationClient as UIA
 
 
 LOG_MARKER = "X64DBG_ACCESSIBILITY_EVENT_PROBE"
+GENERAL_REGISTER = re.compile(r"^(?:EAX|RAX) = ", re.IGNORECASE)
 INSTRUCTION_POINTER = re.compile(r"^(?:EIP|RIP) = ", re.IGNORECASE)
 
 
@@ -151,6 +152,12 @@ def main() -> int:
     try:
         _execute(command_line, f'log "{LOG_MARKER}"')
         comtypes.client.PumpEvents(1.0)
+        # Exercise a non-IP register explicitly, then restore it. A single step
+        # is only guaranteed to change the instruction pointer.
+        _execute(command_line, "cax=cax^1")
+        comtypes.client.PumpEvents(0.5)
+        _execute(command_line, "cax=cax^1")
+        comtypes.client.PumpEvents(0.5)
         _execute(command_line, "sti")
         comtypes.client.PumpEvents(max(args.timeout, 0.1))
     finally:
@@ -168,6 +175,12 @@ def main() -> int:
         (
             "paused debug state",
             _has_value(handler.events, lambda value: value == "Paused"),
+        ),
+        (
+            "general-purpose register",
+            _has_value(
+                handler.events, lambda value: bool(GENERAL_REGISTER.match(value))
+            ),
         ),
         (
             "instruction pointer",
