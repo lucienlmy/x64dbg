@@ -106,13 +106,16 @@ QAccessible::State AccessibleRegistersViewItem::state() const
     }
 
     const RegistersView* view = mParent->m_registersView;
-    const bool visible = !rect().isEmpty();
+    const bool offscreen = rect().isEmpty();
     const bool enabled = view->isEnabled() && view->isActive;
     result.disabled = !enabled;
-    result.focusable = enabled && visible;
-    result.selectable = enabled && visible;
-    result.invisible = !view->isVisible() || !visible;
-    result.offscreen = !visible;
+    result.focusable = enabled;
+    result.selectable = enabled;
+    // Scrolled-out registers are still valid list items. On Windows, marking
+    // them invisible removes them from UIA sibling navigation; offscreen keeps
+    // them in the tree while accurately reporting their clipped geometry.
+    result.invisible = !view->isVisible();
+    result.offscreen = offscreen;
     result.readOnly = true;
     if(view->mSelected == id)
     {

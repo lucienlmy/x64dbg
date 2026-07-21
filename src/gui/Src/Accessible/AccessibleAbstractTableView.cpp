@@ -17,6 +17,13 @@ AccessibleAbstractTableView::AccessibleAbstractTableView(QWidget* w)
 
 AccessibleAbstractTableView::~AccessibleAbstractTableView()
 {
+    // Publish an empty, invalid tree before deleting virtual children. Qt
+    // 6.11+ can synchronously query this adapter from ObjectDestroyed handling.
+    m_destroying = true;
+    rows = 0;
+    cols = 0;
+    tableOffset = 0;
+    m_visibleColumns.clear();
     clearChildInterfaces();
 }
 
@@ -96,7 +103,8 @@ int AccessibleAbstractTableView::visibleRowCount() const
 
 bool AccessibleAbstractTableView::modelIsCurrent() const
 {
-    return m_tableView
+    return !m_destroying
+           && m_tableView
            && modelRevision == m_tableView->accessibilityModelRevision
            && tableOffset == m_tableView->getTableOffset()
            && rows == visibleRowCount()
@@ -105,6 +113,8 @@ bool AccessibleAbstractTableView::modelIsCurrent() const
 
 void AccessibleAbstractTableView::ensureModelUpToDate() const
 {
+    if(m_destroying || !m_tableView)
+        return;
     if(!modelIsCurrent())
     {
         // AbstractTableView normally prepares its visible data lazily from
@@ -172,6 +182,8 @@ QAccessibleInterface* AccessibleAbstractTableView::rowHeaderInterface(int row) c
 
 QAccessibleInterface* AccessibleAbstractTableView::cornerHeaderInterface() const
 {
+    if(m_destroying || !m_tableView)
+        return nullptr;
     auto & id = const_cast<QAccessible::Id &>(cornerInterface);
     if(id == 0)
     {
@@ -188,13 +200,13 @@ QAccessibleInterface* AccessibleAbstractTableView::cornerHeaderInterface() const
 int AccessibleAbstractTableView::childCount() const
 {
     ensureModelUpToDate();
-    return (rows + 1) * (cols + 1);
+    return m_destroying ? 0 : (rows + 1) * (cols + 1);
 }
 
 QAccessibleInterface* AccessibleAbstractTableView::child(int index) const
 {
     ensureModelUpToDate();
-    if(index < 0 || index >= (rows + 1) * (cols + 1))
+    if(m_destroying || index < 0 || index >= (rows + 1) * (cols + 1))
         return nullptr;
 
     const int stride = cols + 1;
@@ -280,7 +292,7 @@ QAccessibleInterface* AccessibleAbstractTableView::focusChild() const
 
 bool AccessibleAbstractTableView::isValid() const
 {
-    return QAccessibleWidget::isValid() && m_tableView;
+    return !m_destroying && QAccessibleWidget::isValid() && m_tableView;
 }
 
 QAccessible::State AccessibleAbstractTableView::state() const
@@ -346,6 +358,8 @@ bool AccessibleAbstractTableView::isRowSelected(int row) const
 void AccessibleAbstractTableView::modelChange(QAccessibleTableModelChangeEvent* event)
 {
     Q_UNUSED(event);
+    if(m_destroying)
+        return;
 
     // Every event emitted by AbstractTableView is a model reset. Visible
     // coordinates have new identity after scrolling even if dimensions match.

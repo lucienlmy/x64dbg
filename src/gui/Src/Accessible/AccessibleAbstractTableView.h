@@ -23,6 +23,7 @@ class AccessibleAbstractTableView : public QAccessibleWidget, public QAccessible
     int cols = 0;
     duint tableOffset = 0;
     quint64 modelRevision = 0;
+    bool m_destroying = false;
     friend class AccessibleAbstractTableViewCell;
     friend class AccessibleAbstractTableViewCellTitle;
     std::vector<duint> m_visibleColumns;
