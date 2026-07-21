@@ -42,6 +42,12 @@ def append_log(log_path: Path, text: str) -> None:
             log_file.write("\n")
 
 
+def process_exit_reason(prefix: str, returncode: int) -> str:
+    if os.name == "nt" and (returncode < 0 or returncode > 0xFF):
+        return f"{prefix}_0x{returncode & 0xFFFFFFFF:08X}"
+    return f"{prefix}_{returncode}"
+
+
 def fail(log_path: Path, reason: str, message: str) -> int:
     append_log(log_path, f'[x64dbg-test] ASSERT FAIL source=driver message="{message}"')
     append_log(log_path, f"[x64dbg-test] FINAL status=fail asserts=1 reason={reason}")
@@ -157,7 +163,8 @@ def main() -> int:
 
         (artifacts_dir / "headless.stdout.txt").write_text(completed.stdout, encoding="utf-8", errors="replace")
         if completed.returncode != 0:
-            return fail(log_path, f"headless_exit_{completed.returncode}", f"headless exited with {completed.returncode}")
+            reason = process_exit_reason("headless_exit", completed.returncode)
+            return fail(log_path, reason, f"headless exited with {completed.returncode} ({reason})")
 
         debug_log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
         if INIT_SCRIPT_MARKER in completed.stdout or INIT_SCRIPT_MARKER in debug_log:
