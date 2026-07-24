@@ -18,15 +18,12 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool read(duint addr, void* dest, duint size) override
     {
-        if(mParser == nullptr)
-            return false;
-
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE || addr < block->BaseAddress)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
         const auto offset = addr - block->BaseAddress;
-        if(offset > block->DataSize || size > block->DataSize - offset)
+        if(size > block->DataSize - offset)
             return false;
 
         // TODO: support page alignment zeroes (might not be relevant anymore)
@@ -40,11 +37,8 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool getRange(duint addr, duint & base, duint & size) override
     {
-        if(mParser == nullptr)
-            return false;
-
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
         base = block->BaseAddress;
@@ -54,8 +48,8 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool isCodePtr(duint addr) override
     {
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
         switch(block->Protect & 0xFF)
@@ -72,13 +66,23 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool isValidPtr(duint addr) override
     {
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
-            return false;
-        return true;
+        return getDumpedBlock(addr) != nullptr;
     }
 
 private:
+    const udmpparser::MemBlock_t* getDumpedBlock(duint addr) const
+    {
+        if(mParser == nullptr)
+            return nullptr;
+
+        auto block = mParser->GetMemBlock(addr);
+        if(block == nullptr || block->State == MEM_FREE || addr < block->BaseAddress)
+            return nullptr;
+
+        const auto offset = addr - block->BaseAddress;
+        return offset < block->DataSize ? block : nullptr;
+    }
+
     udmpparser::UserDumpParser* mParser = nullptr;
 };
 
