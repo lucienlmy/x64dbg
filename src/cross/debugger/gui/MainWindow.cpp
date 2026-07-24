@@ -5,8 +5,6 @@
 #include <QStatusBar>
 #include <QToolBar>
 #include <QLabel>
-#include <QFile>
-#include <QStyleFactory>
 #include <QThread>
 #include <Memory/MemoryPage.h>
 #include "core/LinuxArchitecture.h"
@@ -23,6 +21,7 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
     setWindowTitle("x64dbg");
+    setWindowIcon(icon("bug"));
     resize(1200, 800);
 
     mProvider = new DbgAdapter(this);
@@ -313,146 +312,4 @@ void MainWindow::onStopped(const duint rip, const QString & reason) const
     mDisassembly->reloadData();
     statusBar()->showMessage(QString("%1 - 0x%2").arg(reason).arg(rip, 0, 16));
     mTabWidget->setCurrentIndex(0);
-}
-
-void MainWindow::loadTheme()
-{
-    QApplication::setStyle(QStyleFactory::create("Fusion"));
-
-    QIcon::setThemeSearchPaths({":/", "qrc:/"});
-    QIcon::setThemeName("Default");
-    QIcon::setFallbackThemeName("Default");
-    QApplication::setWindowIcon(QIcon(":/Default/icons/bug.png"));
-
-    if(QFile styleFile(":/style.qss"); styleFile.open(QFile::ReadOnly))
-        qApp->setStyleSheet(styleFile.readAll());
-
-    QColor bg(0x212121);
-    QColor bgSecondary(0x313131);
-    QColor bgHover(0x414141);
-    QColor text(0xe0e0e0);
-    QColor accent(0x89a2f6);
-    QColor disabled(0x646464);
-    QColor border(0x515151);
-
-    QPalette palette;
-    palette.setColor(QPalette::Window, bg);
-    palette.setColor(QPalette::WindowText, text);
-    palette.setColor(QPalette::Base, bgSecondary);
-    palette.setColor(QPalette::AlternateBase, bg);
-    palette.setColor(QPalette::ToolTipBase, bgHover);
-    palette.setColor(QPalette::ToolTipText, Qt::white);
-    palette.setColor(QPalette::Text, text);
-    palette.setColor(QPalette::Button, bg);
-    palette.setColor(QPalette::ButtonText, text);
-    palette.setColor(QPalette::BrightText, Qt::white);
-    palette.setColor(QPalette::Link, accent);
-    palette.setColor(QPalette::Highlight, accent);
-    palette.setColor(QPalette::HighlightedText, Qt::black);
-    // Fusion bevel shading: hand-tuned so raised/sunken widgets read correctly
-    // on a dark background (deriving with lighter()/darker() is too faint)
-    palette.setColor(QPalette::Light, border);
-    palette.setColor(QPalette::Midlight, QColor(0x3f3f3f));
-    palette.setColor(QPalette::Mid, bgSecondary);
-    palette.setColor(QPalette::Dark, QColor(0x161616));
-    palette.setColor(QPalette::Shadow, QColor(0x0e0e0e));
-    palette.setColor(QPalette::LinkVisited, QColor(0xc678dd));
-    palette.setColor(QPalette::PlaceholderText, disabled);
-    palette.setColor(QPalette::Disabled, QPalette::WindowText, disabled);
-    palette.setColor(QPalette::Disabled, QPalette::Text, disabled);
-    palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabled);
-    palette.setColor(QPalette::Disabled, QPalette::Highlight, bgHover); // keep disabled selections visible
-    palette.setColor(QPalette::Disabled, QPalette::Base, bg); // flatten disabled inputs into the window
-    QApplication::setPalette(palette);
-
-    ConfigurationPalette p;
-    p.background = bg;
-    p.darkGrey = border;
-    p.lightGrey = bgSecondary;
-    p.black = text;
-
-    auto* config = new Configuration(p);
-
-    {
-        QFont tableFont = config->Fonts["AbstractTableView"];
-        tableFont.setPointSize(9);
-        config->Fonts["AbstractTableView"] = tableFont;
-        config->Fonts["Disassembly"] = tableFont;
-        config->Fonts["HexDump"] = tableFont;
-        config->Fonts["Stack"] = tableFont;
-        config->Fonts["Registers"] = tableFont;
-        config->Fonts["Log"] = tableFont;
-    }
-
-    config->Colors["DisassemblyBreakpointColor"] = QColor(static_cast<QRgb>(0x000000));
-    config->Colors["DisassemblyBreakpointBackgroundColor"] = QColor(0xFF0000);
-
-    config->Colors["HexDumpByte00Color"] = accent;
-    config->Colors["HexDumpByte7FColor"] = QColor(0xe06c75);
-    config->Colors["HexDumpByteFFColor"] = QColor(0xe06c75);
-    config->Colors["HexDumpByteIsPrintColor"] = QColor(0x98c379);
-
-    config->Colors["RegistersBackgroundColor"] = bg;
-    config->Colors["RegistersLabelColor"] = disabled;
-    config->Colors["RegistersArgumentLabelColor"] = accent;
-    config->Colors["RegistersColor"] = text;
-    config->Colors["RegistersModifiedColor"] = QColor(0xFF0000);
-    config->Colors["RegistersSelectionColor"] = bgHover;
-    config->Colors["RegistersExtraInfoColor"] = disabled;
-
-    config->Colors["StackCspBackgroundColor"] = Qt::transparent;
-    config->Colors["StackCspColor"] = QColor(0xA6F93E);
-    config->Colors["StackAddressColor"] = QColor(0xA0A0A0);
-    config->Colors["StackAddressBackgroundColor"] = Qt::transparent;
-    config->Colors["StackSelectedAddressColor"] = text;
-    config->Colors["StackSelectedAddressBackgroundColor"] = Qt::transparent;
-    config->Colors["StackInactiveTextColor"] = QColor(0xA0A0A0);
-    config->Colors["StackSelectionColor"] = bgHover;
-    config->Colors["StackReturnToColor"] = QColor(0xF55F86);
-
-    QColor mnemonic(0xc678dd);
-    QColor call(0x61afef);
-    QColor jump(0x98c379);
-    QColor ret(0xe06c75);
-    QColor number(0xd19a66);
-    QColor reg(0xe06c75);
-    QColor comment(0x646464);
-    QColor constant(0x56b6c2);
-
-    auto setColorPair = [&](const QString & name, QColor fg, QColor cbg = Qt::transparent)
-    {
-        config->Colors[name + "Color"] = fg;
-        config->Colors[name + "BackgroundColor"] = cbg;
-    };
-
-    setColorPair("InstructionComma", text);
-    setColorPair("InstructionPrefix", mnemonic);
-    setColorPair("InstructionUncategorized", text);
-    setColorPair("InstructionAddress", accent);
-    setColorPair("InstructionValue", number);
-    setColorPair("TraceNewValue", QColor(0xFF0000));
-    setColorPair("InstructionMnemonic", mnemonic);
-    setColorPair("InstructionPushPop", mnemonic);
-    setColorPair("InstructionCall", call);
-    setColorPair("InstructionRet", ret);
-    setColorPair("InstructionConditionalJump", jump);
-    setColorPair("InstructionUnconditionalJump", jump);
-    setColorPair("InstructionNop", comment);
-    setColorPair("InstructionFar", ret);
-    setColorPair("InstructionInt3", ret);
-    setColorPair("InstructionUnusual", ret);
-    setColorPair("InstructionMemorySize", comment);
-    setColorPair("InstructionMemorySegment", constant);
-    setColorPair("InstructionMemoryBrackets", text);
-    setColorPair("InstructionMemoryStackBrackets", constant);
-    setColorPair("InstructionMemoryBaseRegister", reg);
-    setColorPair("InstructionMemoryIndexRegister", reg);
-    setColorPair("InstructionMemoryScale", number);
-    setColorPair("InstructionMemoryOperator", text);
-    setColorPair("InstructionGeneralRegister", reg);
-    setColorPair("InstructionFpuRegister", constant);
-    setColorPair("InstructionMmxRegister", constant);
-    setColorPair("InstructionXmmRegister", constant);
-    setColorPair("InstructionYmmRegister", constant);
-    setColorPair("InstructionZmmRegister", constant);
 }
