@@ -12,6 +12,7 @@ from ui_common import (
     iter_descendants,
     list_matching_windows,
     select_window,
+    wrap_uia_element,
 )
 
 
@@ -61,10 +62,12 @@ def _find_main_window(
 
 
 def _get_cell_text(cell: UIAWrapper) -> str:
+    # QAccessible table cells, headers, and register items expose their displayed
+    # text as UIA Name. Value is only a fallback for standard value controls.
     try:
-        value = cell.iface_value.CurrentValue
-        if value is not None:
-            return str(value)
+        name = cell.element_info.name
+        if name:
+            return name
     except Exception:
         pass
     try:
@@ -74,9 +77,9 @@ def _get_cell_text(cell: UIAWrapper) -> str:
     except Exception:
         pass
     try:
-        name = cell.element_info.name
-        if name:
-            return name
+        value = cell.iface_value.CurrentValue
+        if value is not None:
+            return str(value)
     except Exception:
         pass
     try:
@@ -117,15 +120,18 @@ def _get_control_name(control: UIAWrapper) -> str:
 
 def _rect_intersects(a, b) -> bool:
     return not (
-        a.right < b.left or a.left > b.right or a.bottom < b.top or a.top > b.bottom
+        a.right <= b.left
+        or a.left >= b.right
+        or a.bottom <= b.top
+        or a.top >= b.bottom
     )
 
 
 def _is_offscreen(control: UIAWrapper) -> bool:
     try:
-        return bool(control.iface_element.CurrentIsOffscreen)
+        return not bool(control.element_info.visible)
     except Exception:
-        return False
+        return True
 
 
 def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool) -> str:
@@ -141,9 +147,18 @@ def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool)
         print(f"Table grid: rows={rows} cols={cols}", file=sys.stderr)
 
     header_items = []
-    for element in iter_descendants(table):
-        if element.element_info.control_type in {"HeaderItem", "Header"}:
-            header_items.append(element)
+    try:
+        header_array = table.iface_table.GetCurrentColumnHeaders()
+        header_items = [
+            wrap_uia_element(header_array.GetElement(index))
+            for index in range(int(header_array.Length))
+        ]
+    except Exception:
+        pass
+    if not header_items:
+        for element in iter_descendants(table):
+            if element.element_info.control_type in {"HeaderItem", "Header"}:
+                header_items.append(element)
     header_items.sort(key=lambda item: item.rectangle().left)
     header_texts = [
         (_get_cell_text(item) or f"col{idx}") for idx, item in enumerate(header_items)
@@ -154,11 +169,13 @@ def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool)
     lines = ["\t".join(header_texts)]
 
     row_limit = rows if max_rows is None else min(rows, max_rows)
+    if rows == 0 or cols == 0:
+        return "\t".join(header_texts) + "\n"
 
     grid_usable = True
     try:
         test_item = grid.GetItem(0, 0)
-        _ = UIAWrapper(test_item)
+        _ = wrap_uia_element(test_item)
     except Exception:
         grid_usable = False
 
@@ -179,7 +196,7 @@ def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool)
         for col in range(cols):
             try:
                 cell = grid.GetItem(row, col)
-                cell_wrap = UIAWrapper(cell)
+                cell_wrap = wrap_uia_element(cell)
                 cell_rect = cell_wrap.rectangle()
                 rect_valid = cell_rect.width() > 0 and cell_rect.height() > 0
                 if rect_valid and _rect_intersects(cell_rect, table_rect):
@@ -193,6 +210,10 @@ def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool)
                     except Exception:
                         legacy_name = None
                         legacy_value = None
+                    try:
+                        current_value = cell_wrap.iface_value.CurrentValue
+                    except Exception:
+                        current_value = None
                     print(
                         "Cell",
                         {"row": row, "col": col},
@@ -201,11 +222,7 @@ def _dump_visible_table(table: UIAWrapper, max_rows: Optional[int], debug: bool)
                         "name=",
                         cell_wrap.element_info.name,
                         "value=",
-                        getattr(
-                            getattr(cell_wrap, "iface_value", None),
-                            "CurrentValue",
-                            None,
-                        ),
+                        current_value,
                         "legacy_name=",
                         legacy_name,
                         "legacy_value=",
@@ -250,7 +267,7 @@ def _dump_visible_table_by_dataitems(
 ) -> str:
     items = []
     for element in iter_descendants(table):
-        if element.element_info.control_type not in {"DataItem", "HeaderItem"}:
+        if element.element_info.control_type != "DataItem":
             continue
         try:
             rect = element.rectangle()
@@ -534,7 +551,7 @@ def main() -> int:
                 handle.write("\n".join(tree_lines) + "\n")
             print(f"Wrote {args.tree_out}")
         print(
-            "ERROR: Could not find any Table controls under the window.",
+            "ERROR: Could not find any supported controls under the debugger window.",
             file=sys.stderr,
         )
         return 3
@@ -648,11 +665,13 @@ def main() -> int:
     visible_trees.sort(key=_table_sort_key)
 
     sections = []
+    had_errors = False
     for index, table in enumerate(visible_tables, start=1):
         name = _get_control_name(table)
         try:
             table_text = _dump_visible_table(table, args.max_rows, args.debug)
         except Exception as exc:
+            had_errors = True
             table_text = f"ERROR: {exc}\n"
         sections.append(f"=== View {index}: {name} ===\n{table_text}")
 
@@ -661,6 +680,7 @@ def main() -> int:
         try:
             list_text = _dump_visible_list(lst, args.max_rows, args.debug)
         except Exception as exc:
+            had_errors = True
             list_text = f"ERROR: {exc}\n"
         sections.append(f"=== View {len(sections) + 1}: {name} ===\n{list_text}")
 
@@ -669,6 +689,7 @@ def main() -> int:
         try:
             text_body = _dump_visible_text(txt, args.max_rows)
         except Exception as exc:
+            had_errors = True
             text_body = f"ERROR: {exc}\n"
         if text_body:
             sections.append(f"=== View {len(sections) + 1}: {name} ===\n{text_body}")
@@ -678,6 +699,7 @@ def main() -> int:
         try:
             tree_body = _dump_visible_tree(tree, args.max_rows)
         except Exception as exc:
+            had_errors = True
             tree_body = f"ERROR: {exc}\n"
         if tree_body:
             sections.append(f"=== View {len(sections) + 1}: {name} ===\n{tree_body}")
@@ -686,7 +708,7 @@ def main() -> int:
         handle.write("\n".join(sections))
 
     print(f"Wrote {args.out} ({len(sections)} views)")
-    return 0
+    return 1 if had_errors else 0
 
 
 if __name__ == "__main__":

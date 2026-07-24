@@ -127,6 +127,7 @@ void MainWindow::setupTabs()
     mTabWidget->addTab(createCpuTab(), icon("processor-cpu"), tr("CPU"));
 
     mLog = new QTextBrowser(this);
+    mLog->setAccessibleName(tr("Log"));
     mLog->setFont(ConfigFont("Log"));
     mTabWidget->addTab(mLog, icon("log"), tr("Log"));
 
@@ -150,9 +151,12 @@ QWidget* MainWindow::createCpuTab()
 {
     const auto memPage = new MemoryPage(0, 0, this);
     mDisassembly = new Disassembly(&gArch, false, this);
+    mDisassembly->setAccessibleName(tr("Disassembly"));
     mHexDump = new HexDump(&gArch, this, memPage);
+    mHexDump->setAccessibleName(tr("Dump"));
     mStack = new CPUStack(&gArch, mProvider, this);
-    mRegisters = new RegistersView(this);
+    mStack->setAccessibleName(tr("Stack"));
+    mRegisters = new RegistersView(this); // Sets its accessible name internally.
 
     {
         const int charwidth = mHexDump->getCharWidth();

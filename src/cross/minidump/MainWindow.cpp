@@ -74,6 +74,8 @@ void MainWindow::loadFile(const QString & path)
     auto entryPoint = parser->entryPoint();
     if(entryPoint != 0)
     {
+        // Initialize both address-based views while leaving Disassembly active.
+        emit mNavigation->gotoDump(entryPoint);
         emit mNavigation->gotoDisassembly(entryPoint);
     }
 }

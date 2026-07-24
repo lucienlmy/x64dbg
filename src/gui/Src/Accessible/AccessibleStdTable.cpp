@@ -13,9 +13,10 @@ AccessibleStdTable::~AccessibleStdTable()
 
 bool AccessibleStdTable::isRowSelected(int row) const
 {
-    // row includes title
     auto table = this->table();
-    return table->getInitialSelection() == row + table->getTableOffset() - 1;
+    return row >= 0
+           && row < rowCount()
+           && table->getInitialSelection() == static_cast<duint>(row) + table->getTableOffset();
 }
 
 QString AccessibleStdTable::getCellContent(int row, int column) const
@@ -33,41 +34,26 @@ AbstractStdTable* AccessibleStdTable::table() const
 // TODO: multi-selection
 int AccessibleStdTable::selectedRowCount() const
 {
-    auto table = this->table();
-    dsint r = table->getInitialSelection() - table->getTableOffset();
-    if(r >= 0 && r <= rowCount() - 1)
-        return 1;
-    else
-        return 0;
+    return selectedRows().size();
 }
 
 QList<int> AccessibleStdTable::selectedRows() const
 {
     auto table = this->table();
-    dsint r = table->getInitialSelection() - table->getTableOffset();
-    if(r >= 0 && r <= rowCount() - 1)
-        return QList<int>({ (int)r });
-    else
-        return QList<int>();
+    const duint selection = table->getInitialSelection();
+    const duint offset = table->getTableOffset();
+    if(selection >= offset && selection - offset < static_cast<duint>(rowCount()))
+        return QList<int>({static_cast<int>(selection - offset)});
+    return QList<int>();
 }
 
 int AccessibleStdTable::selectedCellCount() const
 {
-    auto table = this->table();
-    dsint r = table->getInitialSelection() - table->getTableOffset();
-    if(r >= 0 && r <= rowCount() - 1)
-        return 1;
-    else
-        return 0;
+    return AccessibleAbstractTableView::selectedCellCount();
 }
 
 QList<QAccessibleInterface*> AccessibleStdTable::selectedCells() const
 {
-    auto table = this->table();
-    dsint r = table->getInitialSelection() - table->getTableOffset();
-    if(r >= 0 && r <= rowCount() - 1)
-        return QList<QAccessibleInterface*>({ cellAt(r + 1, selectedColumns().first())});
-    else
-        return QList<QAccessibleInterface*>();
+    return AccessibleAbstractTableView::selectedCells();
 }
 #endif

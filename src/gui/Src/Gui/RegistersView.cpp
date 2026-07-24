@@ -14,6 +14,7 @@
 #endif
 
 #include "RegistersView.h"
+#include "Accessible/AccessibleRegistersView.h"
 #include "Configuration.h"
 #include "MiscUtil.h"
 #include "Disassembler/ZydisTokenizer.h"
@@ -755,6 +756,12 @@ void RegistersView::InitMappings()
             it = mRegisterUpdates.erase(it);
         else
             ++it;
+    }
+
+    if(QAccessible::isActive() && isVisible())
+    {
+        QAccessibleEvent reorderEvent(static_cast<RegistersView*>(this), QAccessible::ObjectReorder);
+        QAccessible::updateAccessibility(&reorderEvent);
     }
 }
 
@@ -3485,50 +3492,69 @@ void RegistersView::autoUpdateXMMModesAndRefresh()
     emit refresh();
 }
 
-// Send focused accessibility event
+// Send selection and focus accessibility events
 void RegistersView::accessibilitySelectionChanged()
 {
-    if(QAccessible::isActive())
+    if(!QAccessible::isActive())
+        return;
+
+    auto accessible = dynamic_cast<AccessibleRegistersView*>(QAccessible::queryAccessibleInterface(this));
+    if(!accessible)
+        return;
+
+    if(mAccessibilityPreviousSelected < REGISTER_NAME::UNKNOWN && mAccessibilityPreviousSelected != mSelected)
     {
-        QAccessibleEvent updateEvent(static_cast<RegistersView*>(this), QAccessible::Selection);
-        QAccessible::updateAccessibility(&updateEvent);
-        if(mSelected < REGISTER_NAME::UNKNOWN)
+        if(auto previousItem = accessible->interfaceForRegister(mAccessibilityPreviousSelected))
         {
-            QAccessibleInterface* a = QAccessible::queryAccessibleInterface(this);
-            if(a)
+            QAccessibleEvent removeEvent(previousItem, QAccessible::SelectionRemove);
+            QAccessible::updateAccessibility(&removeEvent);
+        }
+    }
+
+    if(mSelected < REGISTER_NAME::UNKNOWN)
+    {
+        if(auto selectedItem = accessible->interfaceForRegister(mSelected))
+        {
+            if(mAccessibilityPreviousSelected != mSelected)
             {
-                QAccessibleEvent focusEvent(a->child(mSelected), QAccessible::Focus);
+                QAccessibleEvent selectionEvent(selectedItem, QAccessible::SelectionAdd);
+                QAccessible::updateAccessibility(&selectionEvent);
+            }
+            if(hasFocus())
+            {
+                QAccessibleEvent focusEvent(selectedItem, QAccessible::Focus);
                 QAccessible::updateAccessibility(&focusEvent);
             }
         }
-        else
-        {
-            QAccessibleEvent focusEvent(static_cast<RegistersView*>(this), QAccessible::Focus);
-            QAccessible::updateAccessibility(&focusEvent);
-        }
     }
+    else if(hasFocus())
+    {
+        QAccessibleEvent focusEvent(static_cast<RegistersView*>(this), QAccessible::Focus);
+        QAccessible::updateAccessibility(&focusEvent);
+    }
+    mAccessibilityPreviousSelected = mSelected;
 }
 
 // Send value changed accessibility event
 void RegistersView::accessibilityValueChanged()
 {
-    if(QAccessible::isActive() && !mRegisterUpdates.empty())
+    if(!QAccessible::isActive() || mRegisterUpdates.empty())
+        return;
+
+    auto accessible = dynamic_cast<AccessibleRegistersView*>(QAccessible::queryAccessibleInterface(this));
+    if(!accessible)
+        return;
+    for(const auto reg : mRegisterUpdates)
     {
-        QAccessibleInterface* a = QAccessible::queryAccessibleInterface(this);
-        for(auto & i : mRegisterUpdates)
+        if(auto item = accessible->interfaceForRegister(reg))
         {
-            if(i < REGISTER_NAME::UNKNOWN)
-            {
-                if(a)
-                {
-                    QAccessibleInterface* child = a->child(i);
-                    if(child)
-                    {
-                        QAccessibleValueChangeEvent valueChangeEvent(child, QVariant(child->text(QAccessible::Value)));
-                        QAccessible::updateAccessibility(&valueChangeEvent);
-                    }
-                }
-            }
+            // Narrator listens for ValueChanged on register list items. The
+            // displayed value is textual (and may include a symbol), so expose
+            // the same string through QAccessible::Value without claiming a
+            // numeric QAccessibleValueInterface.
+            QAccessibleValueChangeEvent valueChangeEvent(
+                item, QVariant(item->text(QAccessible::Value)));
+            QAccessible::updateAccessibility(&valueChangeEvent);
         }
     }
 }

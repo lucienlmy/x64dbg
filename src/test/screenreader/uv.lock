@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 
 [[package]]
@@ -71,8 +71,12 @@ name = "x64dbg-screenreader-checks"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "comtypes", marker = "sys_platform == 'win32'" },
     { name = "pywinauto" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pywinauto", specifier = ">=0.6.9" }]
+requires-dist = [
+    { name = "comtypes", marker = "sys_platform == 'win32'", specifier = ">=1.4.10" },
+    { name = "pywinauto", specifier = ">=0.6.9" },
+]

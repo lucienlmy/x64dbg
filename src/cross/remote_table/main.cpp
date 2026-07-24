@@ -3,6 +3,7 @@
 
 #include "MainWindow.h"
 #include "Configuration.h"
+#include "CrossAccessible.h"
 #include "TableServer.h"
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
@@ -11,6 +12,10 @@
 
 int main(int argc, char* argv[])
 {
+#ifndef QT_NO_ACCESSIBILITY
+    QAccessible::installFactory(crossAccessibleInterfaceFactory);
+#endif
+
     QApplication a(argc, argv);
     Configuration config({});
     TableServer server;

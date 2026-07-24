@@ -4,6 +4,7 @@
 
 #include "MainWindow.h"
 #include "Configuration.h"
+#include "CrossAccessible.h"
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
 #error Your Qt version is likely too old, upgrade to 5.12 or higher
@@ -13,6 +14,10 @@
 
 int main(int argc, char* argv[])
 {
+#ifndef QT_NO_ACCESSIBILITY
+    QAccessible::installFactory(crossAccessibleInterfaceFactory);
+#endif
+
     QApplication app(argc, argv);
     app.setStyle(QStyleFactory::create("Fusion"));
 

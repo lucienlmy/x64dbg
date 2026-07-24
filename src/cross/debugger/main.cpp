@@ -1,25 +1,12 @@
 #include "gui/MainWindow.h"
-#include "Accessible/AccessibleRegistersView.h"
-#include "Gui/RegistersView.h"
-#include <QAccessible>
-
-#ifndef QT_NO_ACCESSIBILITY
-static QAccessibleInterface* crossAccessibleFactory(const QString & classname, QObject* object)
-{
-    if(!object)
-        return nullptr;
-    if(classname == "RegistersView" && dynamic_cast<RegistersView*>(object))
-        return new AccessibleRegistersView(dynamic_cast<QWidget*>(object));
-    return nullptr;
-}
-#endif
+#include "CrossAccessible.h"
 
 int main(int argc, char* argv[])
 {
     qRegisterMetaType<REGDUMP>("REGDUMP");
 
 #ifndef QT_NO_ACCESSIBILITY
-    QAccessible::installFactory(crossAccessibleFactory);
+    QAccessible::installFactory(crossAccessibleInterfaceFactory);
 #endif
 
     QApplication app(argc, argv);
