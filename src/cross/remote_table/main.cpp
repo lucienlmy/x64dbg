@@ -1,14 +1,9 @@
-#include <QApplication>
+#include <QDarkApplication.h>
 #include <QThread>
 
 #include "MainWindow.h"
-#include "Configuration.h"
 #include "CrossAccessible.h"
 #include "TableServer.h"
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0)
-#error Your Qt version is likely too old, upgrade to 5.12 or higher
-#endif // QT_VERSION
 
 int main(int argc, char* argv[])
 {
@@ -16,10 +11,10 @@ int main(int argc, char* argv[])
     QAccessible::installFactory(crossAccessibleInterfaceFactory);
 #endif
 
-    QApplication a(argc, argv);
-    Configuration config({});
+    QDarkApplication a(argc, argv);
     TableServer server;
     MainWindow w;
     w.show();
+    QDarkApplication::applyDarkTitleBar(&w);
     return a.exec();
 }

@@ -349,11 +349,20 @@ void MainWindow::loadTheme()
     palette.setColor(QPalette::Link, accent);
     palette.setColor(QPalette::Highlight, accent);
     palette.setColor(QPalette::HighlightedText, Qt::black);
-    palette.setColor(QPalette::Light, bg.lighter(120));
-    palette.setColor(QPalette::Dark, bg.darker(130));
+    // Fusion bevel shading: hand-tuned so raised/sunken widgets read correctly
+    // on a dark background (deriving with lighter()/darker() is too faint)
+    palette.setColor(QPalette::Light, border);
+    palette.setColor(QPalette::Midlight, QColor(0x3f3f3f));
+    palette.setColor(QPalette::Mid, bgSecondary);
+    palette.setColor(QPalette::Dark, QColor(0x161616));
+    palette.setColor(QPalette::Shadow, QColor(0x0e0e0e));
+    palette.setColor(QPalette::LinkVisited, QColor(0xc678dd));
+    palette.setColor(QPalette::PlaceholderText, disabled);
     palette.setColor(QPalette::Disabled, QPalette::WindowText, disabled);
     palette.setColor(QPalette::Disabled, QPalette::Text, disabled);
     palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabled);
+    palette.setColor(QPalette::Disabled, QPalette::Highlight, bgHover); // keep disabled selections visible
+    palette.setColor(QPalette::Disabled, QPalette::Base, bg); // flatten disabled inputs into the window
     QApplication::setPalette(palette);
 
     ConfigurationPalette p;
