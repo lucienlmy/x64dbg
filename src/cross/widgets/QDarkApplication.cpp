@@ -93,89 +93,91 @@ QDarkApplication::QDarkApplication(int & argc, char** argv)
     setPalette(dark);
 #endif
 
+    const QColor background("#212121");
+    const QColor base("#313131");
+    const QColor hover("#414141");
+    const QColor text("#e0e0e0");
+    const QColor accent("#89a2f6");
+    const QColor disabled("#646464");
+    const QColor border("#515151");
+    const QColor mnemonic("#c678dd");
+    const QColor call("#61afef");
+    const QColor jump("#98c379");
+    const QColor ret("#e06c75");
+    const QColor number("#d19a66");
+    const QColor reg("#e06c75");
+    const QColor constant("#56b6c2");
+
     QPalette palette;
+    palette.setColor(QPalette::Window, background);
+    palette.setColor(QPalette::WindowText, text);
+    palette.setColor(QPalette::Base, base);
+    palette.setColor(QPalette::AlternateBase, background);
+    palette.setColor(QPalette::ToolTipBase, hover);
+    palette.setColor(QPalette::ToolTipText, Qt::white);
+    palette.setColor(QPalette::Text, text);
+    palette.setColor(QPalette::Button, background);
+    palette.setColor(QPalette::ButtonText, text);
+    palette.setColor(QPalette::BrightText, Qt::white);
+    palette.setColor(QPalette::Link, accent);
+    palette.setColor(QPalette::LinkVisited, mnemonic);
+    palette.setColor(QPalette::Highlight, accent);
+    palette.setColor(QPalette::HighlightedText, Qt::black);
 
-    QColor oneDarkBackground("#282c34");
-    QColor oneDarkForeground("#abb2bf");
-    QColor oneDarkComment("#5c6370");
-    QColor oneDarkKeyword("#c678dd");
-    QColor oneDarkFunction("#61afef");
-    QColor oneDarkString("#98c379");
-    QColor oneDarkNumber("#d19a66");
-    QColor oneDarkVariable("#e06c75");
-    QColor oneDarkConstant("#56b6c2");
+    // Fusion draws bevels/frames/grooves from these five shading roles.
+    palette.setColor(QPalette::Light, border);
+    palette.setColor(QPalette::Midlight, QColor("#3f3f3f"));
+    palette.setColor(QPalette::Mid, base);
+    palette.setColor(QPalette::Dark, QColor("#161616"));
+    palette.setColor(QPalette::Shadow, QColor("#0e0e0e"));
+    palette.setColor(QPalette::PlaceholderText, disabled);
 
-    palette.setColor(QPalette::Window, oneDarkBackground);
-    palette.setColor(QPalette::WindowText, oneDarkForeground);
-    palette.setColor(QPalette::Base, QColor("#21252b"));
-    palette.setColor(QPalette::AlternateBase, QColor("#2c313c")); // used for alternate row color in tree
-    palette.setColor(QPalette::ToolTipBase, QColor("#3a3f4b"));
-    palette.setColor(QPalette::ToolTipText, oneDarkForeground);
-    palette.setColor(QPalette::Text, oneDarkForeground);
-    palette.setColor(QPalette::Button, QColor("#3a3f4b"));
-    palette.setColor(QPalette::ButtonText, oneDarkForeground);
-    palette.setColor(QPalette::BrightText, oneDarkVariable);
-    palette.setColor(QPalette::Link, oneDarkFunction);
-    palette.setColor(QPalette::LinkVisited, oneDarkKeyword);
-    palette.setColor(QPalette::Highlight, oneDarkFunction);
-    palette.setColor(QPalette::HighlightedText, oneDarkBackground);
-
-    // Fusion draws bevels/frames/grooves from these five shading roles. They are
-    // hand-tuned (same values as REVIDE's DarkTheme.h) so that raised elements read
-    // as raised and sunken elements read as sunken on a dark background; deriving
-    // them with lighter()/darker() makes the bevels too faint to see.
-    palette.setColor(QPalette::Light, QColor("#4b5263"));
-    palette.setColor(QPalette::Midlight, QColor("#3f4654"));
-    palette.setColor(QPalette::Mid, QColor("#2c313c"));
-    palette.setColor(QPalette::Dark, QColor("#1d2027"));
-    palette.setColor(QPalette::Shadow, QColor("#151820"));
-
-    palette.setColor(QPalette::PlaceholderText, oneDarkComment);
-
-    palette.setColor(QPalette::Disabled, QPalette::WindowText, oneDarkComment);
-    palette.setColor(QPalette::Disabled, QPalette::Text, oneDarkComment);
-    palette.setColor(QPalette::Disabled, QPalette::ButtonText, oneDarkComment);
-    palette.setColor(QPalette::Disabled, QPalette::Highlight, QColor("#3a3f4b")); // button(): keep disabled selections visible
-    palette.setColor(QPalette::Disabled, QPalette::HighlightedText, oneDarkComment);
-    palette.setColor(QPalette::Disabled, QPalette::Base, oneDarkBackground); // flatten disabled inputs into the window
+    palette.setColor(QPalette::Disabled, QPalette::WindowText, disabled);
+    palette.setColor(QPalette::Disabled, QPalette::Text, disabled);
+    palette.setColor(QPalette::Disabled, QPalette::ButtonText, disabled);
+    palette.setColor(QPalette::Disabled, QPalette::Highlight, hover);
+    palette.setColor(QPalette::Disabled, QPalette::HighlightedText, disabled);
+    palette.setColor(QPalette::Disabled, QPalette::Base, background);
 
     setPalette(palette);
 
-    QColor separator(99, 99, 99);
-    QColor header(75, 75, 75);
-
-    // TODO: how is this derived by qt?
-    separator = QColor("#616671");
-    header = QColor("#484d59");
-
     ConfigurationPalette p;
-    p.background = oneDarkBackground;
-    p.darkGrey = separator;
-    p.lightGrey = header;
-    p.black = oneDarkForeground;
+    p.background = background;
+    p.darkGrey = border;
+    p.lightGrey = base;
+    p.black = text;
 
-    // Create the global configuration instance
+    // Create the global configuration instance.
     mConfiguration = std::make_unique<Configuration>(p);
 
-    auto hexText = Config()->Colors["HexDumpTextColor"];
-    Config()->Colors["HexDumpByte00Color"] = oneDarkConstant;
-    Config()->Colors["HexDumpByte7FColor"] = oneDarkVariable;
-    Config()->Colors["HexDumpByteFFColor"] = oneDarkVariable;
-    Config()->Colors["HexDumpByteIsPrintColor"] = oneDarkString;
+    Config()->Colors["DisassemblyBreakpointColor"] = Qt::black;
+    Config()->Colors["DisassemblyBreakpointBackgroundColor"] = Qt::red;
 
-    // One Dark colors for the disassembly instruction tokens. The Configuration
-    // defaults for these are hardcoded for a light theme (black text, yellow/cyan
-    // backgrounds), which is unreadable on a dark background.
-    const QColor& text = oneDarkForeground;
-    const QColor& mnemonic = oneDarkKeyword;
-    const QColor& call = oneDarkFunction;
-    const QColor& jump = oneDarkString;
-    const QColor& ret = oneDarkVariable;
-    const QColor& number = oneDarkNumber;
-    const QColor& reg = oneDarkVariable;
-    const QColor& comment = oneDarkComment;
-    const QColor& constant = oneDarkConstant;
-    const QColor& accent = oneDarkFunction;
+    Config()->Colors["HexDumpByte00Color"] = accent;
+    Config()->Colors["HexDumpByte7FColor"] = ret;
+    Config()->Colors["HexDumpByteFFColor"] = ret;
+    Config()->Colors["HexDumpByteIsPrintColor"] = jump;
+
+    Config()->Colors["RegistersBackgroundColor"] = background;
+    Config()->Colors["RegistersLabelColor"] = disabled;
+    Config()->Colors["RegistersArgumentLabelColor"] = accent;
+    Config()->Colors["RegistersColor"] = text;
+    Config()->Colors["RegistersModifiedColor"] = Qt::red;
+    Config()->Colors["RegistersSelectionColor"] = hover;
+    Config()->Colors["RegistersExtraInfoColor"] = disabled;
+
+    Config()->Colors["StackCspBackgroundColor"] = Qt::transparent;
+    Config()->Colors["StackCspColor"] = QColor("#a6f93e");
+    Config()->Colors["StackAddressColor"] = QColor("#a0a0a0");
+    Config()->Colors["StackAddressBackgroundColor"] = Qt::transparent;
+    Config()->Colors["StackSelectedAddressColor"] = text;
+    Config()->Colors["StackSelectedAddressBackgroundColor"] = Qt::transparent;
+    Config()->Colors["StackInactiveTextColor"] = QColor("#a0a0a0");
+    Config()->Colors["StackSelectionColor"] = hover;
+    Config()->Colors["StackReturnToColor"] = QColor("#f55f86");
+
+    // Instruction colors shared by all cross-platform data views.
+    const QColor& comment = disabled;
 
     auto setColorPair = [this](const QString& name, const QColor& fg)
     {
