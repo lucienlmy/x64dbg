@@ -13,11 +13,10 @@ int main(int argc, char* argv[])
     w.show();
     QDarkApplication::applyDarkTitleBar(&w);
 
-    // Load the dump provided on the command line
-    if(argc > 1)
-    {
-        w.loadFile(QString::fromUtf8(argv[1]));
-    }
+    // Load the dump provided on the command line.
+    const auto arguments = app.arguments();
+    if(arguments.size() > 1)
+        w.loadFile(arguments.at(1));
 
     return app.exec();
 }

@@ -23,12 +23,10 @@ struct DumpMemoryProvider : MemoryProvider
 
         // TODO: support page alignment zeroes (might not be relevant anymore)
         auto data = mParser->ReadMemory(addr, size);
-        if(!data)
-        {
+        if(!data || data->size() != size)
             return false;
-        }
 
-        memcpy(dest, data->data(), data->size());
+        memcpy(dest, data->data(), size);
         return true;
     }
 
