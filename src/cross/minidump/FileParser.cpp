@@ -21,6 +21,14 @@ struct DumpMemoryProvider : MemoryProvider
         if(mParser == nullptr)
             return false;
 
+        auto block = mParser->GetMemBlock(addr);
+        if(block == nullptr || block->State == MEM_FREE || addr < block->BaseAddress)
+            return false;
+
+        const auto offset = addr - block->BaseAddress;
+        if(offset > block->DataSize || size > block->DataSize - offset)
+            return false;
+
         // TODO: support page alignment zeroes (might not be relevant anymore)
         auto data = mParser->ReadMemory(addr, size);
         if(!data || data->size() != size)

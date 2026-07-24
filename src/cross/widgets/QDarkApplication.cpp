@@ -13,6 +13,7 @@
 #    include <windows.h>
 #    include <QTimer>
 #    include <QPointer>
+#    include <QWidget>
 #endif
 
 QDarkApplication::QDarkApplication(int & argc, char** argv)
