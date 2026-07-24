@@ -1,6 +1,6 @@
-#include <QApplication>
 #include <QFile>
 
+#include <QDarkApplication.h>
 #include <Gui/ReleaseNotesDialog.h>
 
 int main(int argc, char* argv[])
@@ -19,11 +19,13 @@ int main(int argc, char* argv[])
     }
     auto markdown = f.readAll();
 
-    QApplication a(argc, argv);
+    QDarkApplication a(argc, argv);
     ReleaseNotesDialog d({});
     if(!d.setMarkdown(QString::fromUtf8(markdown), "https://github.com/x64dbg/x64dbg/issues/"))
     {
         puts("Failed to convert markdown!");
     }
+    d.show();
+    QDarkApplication::applyDarkTitleBar(&d);
     return d.exec();
 }

@@ -1,3 +1,4 @@
+#include <QDarkApplication.h>
 #include "gui/MainWindow.h"
 #include "CrossAccessible.h"
 
@@ -9,10 +10,16 @@ int main(int argc, char* argv[])
     QAccessible::installFactory(crossAccessibleInterfaceFactory);
 #endif
 
-    QApplication app(argc, argv);
-    MainWindow::loadTheme();
+    QDarkApplication app(argc, argv);
+
+    // Keep the debugger's dense data views while using the shared dark theme.
+    QFont tableFont = Config()->Fonts["AbstractTableView"];
+    tableFont.setPointSize(9);
+    for(const auto* fontName : {"AbstractTableView", "Disassembly", "HexDump", "Stack", "Registers", "Log"})
+        Config()->Fonts[fontName] = tableFont;
 
     MainWindow w;
     w.show();
-    return QApplication::exec();
+    QDarkApplication::applyDarkTitleBar(&w);
+    return app.exec();
 }

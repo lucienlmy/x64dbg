@@ -28,6 +28,6 @@ set_target_properties(libpl PROPERTIES
 """
 
 [fetch-content.udmp-parser]
-git = "https://github.com/mrexodia/udmp-parser"
-tag = "bc5952eda39ba0b1a07fc57f57d166292f1e9563"
+git = "https://github.com/0vercl0k/udmp-parser"
+tag = "2fff7ac40f22118cd7e68b1df71dbfd22a4906f6"
 subdir = "src"

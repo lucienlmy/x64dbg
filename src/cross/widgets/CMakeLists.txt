@@ -27,6 +27,8 @@ set(hook_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/Types.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Imports.h
     ${CMAKE_CURRENT_SOURCE_DIR}/RegisterContext.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/QDarkApplication.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/QDarkApplication.cpp
 )
 
 set(widgets_SOURCES

@@ -65,7 +65,7 @@ endif()
 add_subdirectory(vendor)
 set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND ELFBUG_BUILD_TESTS) # elfbug-tests
+if((CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$") AND ELFBUG_BUILD_TESTS) # elfbug-tests
 	# Subdirectory: ElfBug/tests
 	set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
 	if(CMAKE_FOLDER)
@@ -250,7 +250,7 @@ if(NOT CMKR_VS_STARTUP_PROJECT)
 endif()
 
 # Target: ElfBug
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux") # linux
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$") # linux-x64
 	set(ElfBug_SOURCES
 		"ElfBug/ElfBug/api/elfbug_api.cpp"
 		"ElfBug/ElfBug/api/elfbug_api.h"
@@ -296,7 +296,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux") # linux
 
 endif()
 # Target: debugger
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux") # linux
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$") # linux-x64
 	set(debugger_SOURCES
 		cmake.toml
 		"debugger/core/DbgAdapter.cpp"

@@ -13,8 +13,8 @@ endif()
 """
 
 [conditions]
-linux = "CMAKE_SYSTEM_NAME STREQUAL \"Linux\""
-elfbug-tests = "CMAKE_SYSTEM_NAME STREQUAL \"Linux\" AND ELFBUG_BUILD_TESTS"
+linux-x64 = "CMAKE_SYSTEM_NAME STREQUAL \"Linux\" AND CMAKE_SYSTEM_PROCESSOR MATCHES \"^(x86_64|amd64|AMD64)$\""
+elfbug-tests = "$<linux-x64> AND ELFBUG_BUILD_TESTS"
 
 [options]
 LIBPL_ENABLE_CLI = false
@@ -69,7 +69,9 @@ sources = [
     "release_notes/*.h",
     "release_notes/*.ui",
 ]
-include-directories = ["release_notes"]
+include-directories = [
+    "release_notes",
+]
 link-libraries = [
     "x64dbg::widgets",
 ]
@@ -82,19 +84,19 @@ sources = [
     "hex_viewer/*.ui",
     "hex_viewer/*.qrc",
 ]
+include-directories = [
+    "hex_viewer",
+]
 link-libraries = [
     "x64dbg::widgets",
     "::libpl",
     "::libpl-gen",
     "fmt::fmt-header-only",
 ]
-private-include-directories = [
-    "hex_viewer",
-]
 
 [target.ElfBug]
 type = "static"
-condition = "linux"
+condition = "linux-x64"
 sources = ["ElfBug/ElfBug/**.cpp"]
 headers = ["ElfBug/ElfBug/**.h"]
 compile-features = ["cxx_std_17"]
@@ -103,7 +105,7 @@ link-libraries = ["Threads::Threads"]
 
 [target.debugger]
 type = "qt_executable"
-condition = "linux"
+condition = "linux-x64"
 sources = [
     "debugger/main.cpp",
     "debugger/core/*.cpp",
