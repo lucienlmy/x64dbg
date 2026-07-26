@@ -41,6 +41,9 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 echo Applying CHM hacks
 copy theme.js .\_build\htmlhelp\_static\js\theme.js
 type hacks.css >> .\_build\htmlhelp\_static\css\theme.css
+echo Generating keyword index
+"%PORTABLE_PYTHON%\python.exe" genhhk.py .\_build\htmlhelp\x64dbgdoc.hhp
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 echo Building CHM File
 hhc.exe .\_build\htmlhelp\x64dbgdoc.hhp
 copy /Y .\_build\htmlhelp\x64dbgdoc.chm x64dbg.chm
