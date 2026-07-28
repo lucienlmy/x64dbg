@@ -10,6 +10,8 @@ MiniMemoryMap::MiniMemoryMap(Navigation* navigation, QWidget* parent)
     : StdTable(parent)
     , mNavigation(navigation)
 {
+    setAccessibleName(tr("Memory Map"));
+
     std::map<ColumnIndex, std::pair<int, QString>> columns;
     columns[ColAllocationBase] = { 16, tr("Allocation") };
     columns[ColBaseAddress] = { 16, tr("Base") };

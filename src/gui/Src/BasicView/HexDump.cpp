@@ -1760,11 +1760,16 @@ void HexDump::selectionChangedSlot()
 
 int HexDump::accessibilitySelectedRow() const
 {
-    auto sel = getInitialSelection();
-    if(sel >= getTableOffsetRva() && sel <= getTableOffsetRva() + getViewableRowsCount() * getBytePerRowCount())
-        return (getInitialSelection() - getTableOffsetRva()) / getBytePerRowCount();
-    else
+    const duint bytesPerRow = getBytePerRowCount();
+    if(bytesPerRow == 0)
         return -1;
+
+    const duint selection = getInitialSelection();
+    const duint firstAddress = getTableOffsetRva();
+    const duint visibleSize = getViewableRowsCount() * bytesPerRow;
+    if(selection >= firstAddress && selection - firstAddress < visibleSize)
+        return static_cast<int>((selection - firstAddress) / bytesPerRow);
+    return -1;
 }
 
 void HexDump::setAddressColor(duint vaStart, duint vaEnd, unsigned int preset)

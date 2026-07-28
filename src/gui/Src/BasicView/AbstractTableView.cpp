@@ -69,6 +69,8 @@ void AbstractTableView::Initialize()
     //
     // Init all other updates once
     accessibilitySelectedColumn = 0;
+    accessibilityPreviousSelectedRow = -1;
+    accessibilityPreviousSelectedColumn = -1;
     updateColors();
     updateFonts();
     updateShortcuts();
@@ -148,6 +150,7 @@ void AbstractTableView::loadColumnFromConfig(const QString & viewName)
             mColumnOrder[i] = order - 1;
     }
     mViewName = viewName;
+    accessibilityTableModelChanged();
 }
 
 void AbstractTableView::saveColumnToConfig()
@@ -212,6 +215,13 @@ void AbstractTableView::paintEvent(QPaintEvent* event)
         prepareData();
         mPrevTableOffset = mTableOffset;
         mShouldReload = false;
+    }
+
+    // Notify only after prepareData() has made the accessible model coherent.
+    if(accessibilityModelChangePending)
+    {
+        accessibilityModelChangePending = false;
+        accessibilityNotifyTableModelChanged();
     }
 
     // TODO: report if mTableOffset is out of view
@@ -515,6 +525,7 @@ void AbstractTableView::mouseReleaseEvent(QMouseEvent* event)
             std::swap(mColumnOrder[reorderFrom], mColumnOrder[reorderTo]);
             mGuiState = AbstractTableView::NoState;
             updateLastColumnWidth();
+            accessibilityTableModelChanged();
         }
         else
         {
@@ -804,7 +815,10 @@ void AbstractTableView::vertSliderActionSlot(int action)
 
     // TODO: negative?
     // Call the hook (Usefull for disassembly)
+    const duint previousTableOffset = mTableOffset;
     mTableOffset = sliderMovedHook((QScrollBar::SliderAction)action, mTableOffset, delta);
+    if(mTableOffset != previousTableOffset)
+        accessibilityTableModelChanged();
 
     //this emit causes massive lag in the GUI
     //emit tableOffsetChanged(mTableOffset);
@@ -1233,8 +1247,11 @@ bool AbstractTableView::getColumnHidden(duint col) const
 
 void AbstractTableView::setColumnHidden(duint col, bool hidden)
 {
-    if(col < getColumnCount() && col >= 0)
+    if(col < getColumnCount() && mColumnList[col].hidden != hidden)
+    {
         mColumnList[col].hidden = hidden;
+        accessibilityTableModelChanged();
+    }
 }
 
 void AbstractTableView::setColumnWidth(duint col, int width)
@@ -1249,8 +1266,11 @@ void AbstractTableView::setColumnWidth(duint col, int width)
 
 void AbstractTableView::setColumnOrder(duint col, duint colNew)
 {
-    if(colNew != 0)
+    if(col < getColumnCount() && colNew != 0 && mColumnOrder[col] != colNew - 1)
+    {
         mColumnOrder[col] = colNew - 1;
+        accessibilityTableModelChanged();
+    }
 }
 
 duint AbstractTableView::getColumnOrder(duint col) const
@@ -1288,7 +1308,11 @@ void AbstractTableView::setNbrOfLineToPrint(duint parNbrOfLineToPrint)
 
 void AbstractTableView::setShowHeader(bool show)
 {
-    mHeader.isVisible = show;
+    if(mHeader.isVisible != show)
+    {
+        mHeader.isVisible = show;
+        accessibilityTableModelChanged();
+    }
 }
 
 int AbstractTableView::getCharWidth() const
@@ -1335,11 +1359,14 @@ duint AbstractTableView::getTableOffset() const
 
 void AbstractTableView::setTableOffset(duint val)
 {
+    const duint previousTableOffset = mTableOffset;
     auto rowCount = getRowCount();
     auto viewableRows = getViewableRowsCount();
     if(rowCount <= viewableRows)
     {
         mTableOffset = 0;
+        if(mTableOffset != previousTableOffset)
+            accessibilityTableModelChanged();
         return;
     }
     auto maxTableOffset = getMaxTableOffset();
@@ -1350,6 +1377,8 @@ void AbstractTableView::setTableOffset(duint val)
     else
         mTableOffset = val;
 
+    if(mTableOffset != previousTableOffset)
+        accessibilityTableModelChanged();
     emit tableOffsetChanged(val);
 
     MethodInvoker::invokeMethod([this]()
@@ -1367,6 +1396,7 @@ void AbstractTableView::setTableOffset(duint val)
 void AbstractTableView::reloadData()
 {
     mShouldReload = true;
+    accessibilityTableModelChanged();
     emit tableOffsetChanged(mTableOffset);
     updateViewport();
 }
@@ -1403,47 +1433,121 @@ int AbstractTableView::accessibilitySelectedRow() const
     return 0;
 }
 
+int AbstractTableView::accessibilityVisibleColumnCount() const
+{
+    int result = 0;
+    const int rawColumnCount = static_cast<int>(std::min<duint>(getColumnCount(), 1000));
+    for(int displayColumn = 0; displayColumn < rawColumnCount && displayColumn < mColumnOrder.size(); displayColumn++)
+    {
+        const duint logicalColumn = mColumnOrder[displayColumn];
+        if(logicalColumn < getColumnCount() && !getColumnHidden(logicalColumn))
+            result++;
+    }
+    return result;
+}
+
 void AbstractTableView::accessibilitySelectionChanged()
 {
-    if(QAccessible::isActive())
+    if(!QAccessible::isActive())
+        return;
+
+    // A selection change often follows reloadData() synchronously. Deliver the
+    // pending reset first so clients never receive a child-selection event and
+    // then immediately have that child's ID invalidated by the reset.
+    if(accessibilityModelChangePending)
     {
-        QAccessibleInterface* accessible = QAccessible::queryAccessibleInterface(this);
-        QAccessibleEvent selectionEvent(accessible, QAccessible::SectionChanged);
-        QAccessible::updateAccessibility(&selectionEvent);
-        if(hasFocus())
-        {
-            auto sel = accessibilitySelectedRow();
-            if(sel != -1)
-            {
-                QAccessibleTableInterface* tableInterface = (QAccessibleTableInterface*)accessible->interface_cast(QAccessible::TableInterface);
-                if(!tableInterface) //TODO: register accessible table interface
-                    return;
-                QAccessibleInterface* cell = tableInterface->cellAt(sel + 1, accessibilitySelectedColumn);
-                if(cell)
-                {
-                    QAccessibleEvent focusEvent(cell, QAccessible::Focus);
-                    QAccessible::updateAccessibility(&focusEvent);
-                }
-            }
-        }
+        prepareData();
+        accessibilityModelChangePending = false;
+        accessibilityNotifyTableModelChanged();
     }
+
+    const int selectedRow = accessibilitySelectedRow();
+    const int selectedColumn = accessibilitySelectedColumn;
+    const bool rowChanged = selectedRow != accessibilityPreviousSelectedRow;
+
+    // Match QTableView's event producer: target the QObject-backed view and
+    // identify its virtual cell by direct-child index. QAccessibleEvent then
+    // resolves the current table adapter during each dispatch, so no event
+    // retains an adapter or cell that a platform bridge may replace.
+    const auto sendCellEvent = [this](int row, int column, QAccessible::Event type)
+    {
+        const int columns = accessibilityVisibleColumnCount();
+        const duint totalRows = getRowCount();
+        const duint remainingRows = mTableOffset < totalRows ? totalRows - mTableOffset : 0;
+        const int rows = static_cast<int>(std::min<duint>({getViewableRowsCount(), remainingRows, 10000}));
+        if(row < 0 || row >= rows || column < 0 || column >= columns)
+            return false;
+
+        QAccessibleEvent event(this, type);
+        // Match QAccessibleTable's structural grid: hidden corner and column
+        // headers in row zero, then a hidden row header before each data row.
+        event.setChild((row + 1) * (columns + 1) + column + 1);
+        QAccessible::updateAccessibility(&event);
+        return true;
+    };
+
+    if(rowChanged)
+    {
+        sendCellEvent(accessibilityPreviousSelectedRow, accessibilityPreviousSelectedColumn,
+                      QAccessible::SelectionRemove);
+        sendCellEvent(selectedRow, selectedColumn, QAccessible::SelectionAdd);
+    }
+
+    if(hasFocus() && !sendCellEvent(selectedRow, selectedColumn, QAccessible::Focus))
+    {
+        QAccessibleEvent focusEvent(this, QAccessible::Focus);
+        QAccessible::updateAccessibility(&focusEvent);
+    }
+
+    accessibilityPreviousSelectedRow = selectedRow;
+    accessibilityPreviousSelectedColumn = selectedColumn;
 }
 
 void AbstractTableView::accessibilityTableModelChanged()
 {
+    accessibilityModelRevision++;
+    accessibilityPreviousSelectedRow = -1;
+    accessibilityPreviousSelectedColumn = -1;
+
+    const int visibleColumnCount = accessibilityVisibleColumnCount();
+    accessibilitySelectedColumn = visibleColumnCount > 0
+                                  ? std::min(accessibilitySelectedColumn, visibleColumnCount - 1)
+                                  : 0;
+
     if(QAccessible::isActive())
     {
-        QAccessibleInterface* accessibleInterface = QAccessible::queryAccessibleInterface(this);
-        QAccessibleTableModelChangeEvent model(accessibleInterface, QAccessibleTableModelChangeEvent::ModelReset);
-        model.setFirstColumn(0);
-        model.setFirstRow(0);
-        if(getViewableRowsCount() < getRowCount())
-            model.setLastRow(getViewableRowsCount() + 1);
-        else
-            model.setLastRow(getRowCount() + 1);
-        model.setLastColumn(getColumnCount());
-        QAccessible::updateAccessibility(&model);
+        accessibilityModelChangePending = true;
+        updateViewport();
     }
+}
+
+void AbstractTableView::accessibilityNotifyTableModelChanged()
+{
+    if(!QAccessible::isActive())
+        return;
+
+    // Use the QObject constructor for the QObject-backed table. The Qt 6
+    // interface constructor stores the interface ID in the m_child union and
+    // then stores iface->object(); uniqueId() consequently treats that ID as a
+    // child index. Cocoa calls uniqueId() while posting table notifications.
+    QAccessibleTableModelChangeEvent model(this, QAccessibleTableModelChangeEvent::ModelReset);
+
+    const duint totalRows = getRowCount();
+    const duint remainingRows = mTableOffset < totalRows ? totalRows - mTableOffset : 0;
+    const int accessibleRows = static_cast<int>(std::min<duint>({getViewableRowsCount(), remainingRows, 10000}));
+    const int accessibleColumns = accessibilityVisibleColumnCount();
+
+    if(accessibleRows > 0)
+    {
+        model.setFirstRow(0);
+        model.setLastRow(accessibleRows - 1);
+    }
+    if(accessibleColumns > 0)
+    {
+        model.setFirstColumn(0);
+        model.setLastColumn(accessibleColumns - 1);
+    }
+    QAccessible::updateAccessibility(&model);
 }
 
 void AbstractTableView::accessibilityMousePressSetColumn(QMouseEvent* event)

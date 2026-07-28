@@ -1,18 +1,22 @@
 #pragma once
 #ifndef QT_NO_ACCESSIBILITY
 #include <QAccessibleWidget>
+#include <QPointer>
 #include "../BasicView/AbstractTableView.h"
 
 class AccessibleAbstractTableView;
 
-class AccessibleAbstractTableViewCell : public QAccessibleInterface, QAccessibleTableCellInterface
+class AccessibleAbstractTableViewCell : public QAccessibleInterface, public QAccessibleTableCellInterface
 {
 protected:
-    duint row; // The first visible row is index 0. Off by 1 compared with AccessibleAbstractTableView row due to column titles.
+    int row; // Zero-based visible data row; column headers are separate children.
     int column;
-    AccessibleAbstractTableView* mParent;
+    quint64 mModelRevision;
+    QPointer<AbstractTableView> mTableView;
+    AccessibleAbstractTableView* accessibleTable() const;
+    bool belongsTo(const AccessibleAbstractTableView* table) const;
 public:
-    AccessibleAbstractTableViewCell(AccessibleAbstractTableView* parent, duint row, int column);
+    AccessibleAbstractTableViewCell(AbstractTableView* tableView, int row, int column, quint64 modelRevision);
     // QAccessibleInterface
     QString text(QAccessible::Text t) const override;
     QColor foregroundColor() const override;

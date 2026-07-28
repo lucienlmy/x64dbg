@@ -15,13 +15,6 @@ MainWindow::MainWindow(QWidget* parent)
     setupNavigation();
     setupWidgets();
     setupToolSync();
-
-    // Load the dump provided on the command line
-    auto args = qApp->arguments();
-    if(args.length() > 1)
-    {
-        loadFile(args.at(1));
-    }
 }
 
 MainWindow::~MainWindow()
@@ -37,7 +30,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 
 void MainWindow::on_actionLoad_DMP_triggered()
 {
-    auto dumpFile = QFileDialog::getOpenFileName(this, "Load dump", QString(), "Dump Files (*.dmp *.exe)");
+    auto dumpFile = QFileDialog::getOpenFileName(this, "Load dump", QString(), "Dump Files (*.dmp *.exe *.dll *.sys)");
     if(!dumpFile.isEmpty())
     {
         loadFile(dumpFile);
@@ -74,6 +67,8 @@ void MainWindow::loadFile(const QString & path)
     auto entryPoint = parser->entryPoint();
     if(entryPoint != 0)
     {
+        // Initialize both address-based views while leaving Disassembly active.
+        emit mNavigation->gotoDump(entryPoint);
         emit mNavigation->gotoDisassembly(entryPoint);
     }
 }

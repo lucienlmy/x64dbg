@@ -15,6 +15,8 @@
 RemoteTable::RemoteTable(QWidget* parent)
     : AbstractStdTable(parent)
 {
+    setAccessibleName(tr("Remote Table"));
+
     std::map<ColumnIndex, std::pair<int, QString>> columns;
     columns[ColAddress] = { 50, tr("Address") };
     columns[ColData] = { 50, tr("Data") };

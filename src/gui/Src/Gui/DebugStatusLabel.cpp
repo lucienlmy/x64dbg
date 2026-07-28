@@ -1,6 +1,5 @@
 #include "DebugStatusLabel.h"
 #include <QAccessible>
-#include <QTextDocument>
 #include <QStyle>
 #include <QMetaEnum>
 
@@ -47,7 +46,9 @@ void DebugStatusLabel::debugStateChangedSlot(DBGSTATE state)
     this->style()->polish(this);
     this->update();
 
-    // Send accesibility events
+    // Passive status labels are not focused, so screen readers such as
+    // Narrator do not announce QLabel's automatic NameChanged notification.
+    // Preserve the explicit ValueChanged event used for live status updates.
     if(QAccessible::isActive())
     {
         QAccessibleValueChangeEvent updateEvent(this, mStatusTexts[state]);
