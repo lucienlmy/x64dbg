@@ -331,8 +331,8 @@ void TraceRecordManager::TraceExecuteRecord(const Zydis & newInstruction)
                 changed++;
         }
         const bool writeThreadId = newThreadId != rtOldThreadId
-            || rtNeedThreadId
-            || ((rtRecordedInstructions - 1) % MAX_INSTRUCTIONS_TRACED_FULL_REG_DUMP == 0);
+                                   || rtNeedThreadId
+                                   || ((rtRecordedInstructions - 1) % MAX_INSTRUCTIONS_TRACED_FULL_REG_DUMP == 0);
         unsigned char blockFlags = writeThreadId ? 0x80 : 0;
         blockFlags |= rtOldOpcodeSize;
 
