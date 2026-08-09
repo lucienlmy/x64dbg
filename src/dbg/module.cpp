@@ -71,7 +71,8 @@ static ULONG64 ModSectionVirtualSize(PIMAGE_SECTION_HEADER section)
 
 static ULONG64 ModSectionRvaSize(PIMAGE_NT_HEADERS ntHeaders, PIMAGE_SECTION_HEADER section, WORD index)
 {
-    auto size = ModSectionVirtualSize(section);
+    // Raw section padding is still backed by the file and can be patched.
+    auto size = std::max<ULONG64>(ModSectionVirtualSize(section), section->SizeOfRawData);
     if(index + 1 < ntHeaders->FileHeader.NumberOfSections)
     {
         auto nextSection = section + 1;
