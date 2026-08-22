@@ -565,4 +565,12 @@ void dbgfunctionsinit()
     {
         return BpSetFieldText(*ref, field, value);
     };
+    _dbgfunctions.ModNameFromHash = [](duint hash, char* modname)
+    {
+        auto name = ModNameFromHash(hash);
+        if(name.empty())
+            return false;
+        strncpy_s(modname, MAX_MODULE_SIZE, name.c_str(), _TRUNCATE);
+        return true;
+    };
 }
