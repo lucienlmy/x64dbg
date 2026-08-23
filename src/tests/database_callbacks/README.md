@@ -71,11 +71,6 @@ Validates that batch comment operations emit bulk callbacks.
 Validates that a comment added reentrantly from a batch callback is delivered only
 after every plugin has received the older batch.
 
-### `comment-threaded`
-
-Validates that callbacks from concurrent comment writers preserve database commit
-order, leaving the callback mirror equal to the final database value.
-
 ---
 
 ## Label Tests

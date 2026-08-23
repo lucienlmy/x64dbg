@@ -1,21 +1,7 @@
 #pragma once
 
 #include <deque>
-#include <mutex>
 #include "_plugins.h"
-
-class DbCallbackOperation
-{
-public:
-    DbCallbackOperation();
-    ~DbCallbackOperation();
-
-    DbCallbackOperation(const DbCallbackOperation &) = delete;
-    DbCallbackOperation & operator=(const DbCallbackOperation &) = delete;
-
-private:
-    std::unique_lock<std::recursive_mutex> mLock;
-};
 
 class DbCallbackBatcher
 {
@@ -28,8 +14,6 @@ public:
 
 private:
     static thread_local DbCallbackBatcher* tActiveBatcher; // per thread batch object
-
-    DbCallbackOperation mOperation;
 
     void add(DbOperation & op, bool loading);
     void flush();

@@ -47,8 +47,6 @@ bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
     if(moduleBase != ModBaseFromAddr(End))
         return false;
 
-    DbCallbackOperation callbackOperation;
-
     // Loops cannot overlap other loops
     int finalDepth = 0;
 
