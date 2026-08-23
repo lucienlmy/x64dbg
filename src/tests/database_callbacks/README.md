@@ -64,6 +64,11 @@ Validates that singular comment operations emit exactly one non-bulk callback.
 
 Validates that batch comment operations emit bulk callbacks.
 
+### `comment-reentrant`
+
+Validates that an operation triggered reentrantly by a batch callback is delivered only
+after the in-flight batch completes.
+
 ---
 
 ## Label Tests
