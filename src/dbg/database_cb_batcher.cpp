@@ -31,17 +31,14 @@ DbCallbackBatcher::~DbCallbackBatcher()
 
 bool DbCallbackBatcher::IsActive(bool loading)
 {
-    if(tActiveBatcher)
-    {
-        ASSERT_ALWAYS(loading == tActiveBatcher->mLoading);
+    if(tActiveBatcher && loading == tActiveBatcher->mLoading)
         return tActiveBatcher->mActive;
-    }
     return !plugincbempty(loading ? CB_DBLOADOPERATION : CB_DBOPERATION);
 }
 
 void DbCallbackBatcher::Add(DbOperation & op, bool loading)
 {
-    if(tActiveBatcher != nullptr)
+    if(tActiveBatcher != nullptr && loading == tActiveBatcher->mLoading)
     {
         tActiveBatcher->add(op, loading);
     }
@@ -60,7 +57,7 @@ void DbCallbackBatcher::Add(DbOperation & op, bool loading)
 
 void DbCallbackBatcher::add(DbOperation & op, bool loading)
 {
-    ASSERT_ALWAYS(loading == mLoading);
+    ASSERT_TRUE(loading == mLoading);
 
     // NOTE: bad, we already paid the DbOperation construction
     if(!mActive)
@@ -84,7 +81,11 @@ void DbCallbackBatcher::add(DbOperation & op, bool loading)
 void DbCallbackBatcher::flush()
 {
     if(mFlushing)
+    {
+        // The outer flush drains reentrant operations after callback delivery.
+        // In this rare case the pending batch may exceed the normal size limit.
         return;
+    }
 
     mFlushing = true;
     while(!mOperations.empty())

@@ -83,6 +83,15 @@ Validates that batch label operations emit bulk callbacks.
 
 ---
 
+## Database Load Tests
+
+### `db-load-reentrant`
+
+Validates that a regular mutation triggered from `CB_DBLOADOPERATION` is emitted as
+`CB_DBOPERATION`. Cross-type callback ordering is intentionally not asserted.
+
+---
+
 ## Loop Tests
 
 Loops are range items (start/end) that additionally carry a nesting `depth` and a
