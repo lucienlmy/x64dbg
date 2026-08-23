@@ -60,12 +60,12 @@ set_target_properties(libpl PROPERTIES
     UNITY_BUILD ON
 )
 
-message(STATUS "Fetching udmp-parser (bc5952eda39ba0b1a07fc57f57d166292f1e9563)...")
+message(STATUS "Fetching udmp-parser (2fff7ac40f22118cd7e68b1df71dbfd22a4906f6)...")
 FetchContent_Declare(udmp-parser
 	GIT_REPOSITORY
-		"https://github.com/mrexodia/udmp-parser"
+		"https://github.com/0vercl0k/udmp-parser"
 	GIT_TAG
-		bc5952eda39ba0b1a07fc57f57d166292f1e9563
+		2fff7ac40f22118cd7e68b1df71dbfd22a4906f6
 	SOURCE_SUBDIR
 		src
 )

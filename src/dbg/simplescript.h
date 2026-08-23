@@ -39,6 +39,7 @@ void ScriptStepAsync(bool gui);
 bool ScriptBpGetLocked(int line);
 bool ScriptBpToggleLocked(int line);
 ScriptCommandOutcome ScriptCmdExecAwait(const char* command, bool gui, const SCRIPTSTATE* interruptState);
+bool ScriptIsExecutingCommand();
 void ScriptSetIpAwait(int line);
 ScriptInterruptState ScriptInterruptAwait(ScriptInterrupt reason);
 void ScriptResume();

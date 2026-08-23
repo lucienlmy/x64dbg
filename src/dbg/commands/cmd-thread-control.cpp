@@ -52,18 +52,31 @@ bool cbDebugSwitchthread(int argc, char* argv[])
     if(argc > 1)
         if(!valfromstring(argv[1], &threadid, false))
             return false;
+    auto options = argc > 2 ? argv[2] : "";
+    bool quiet = !!strstr(options, "silent") || !!strstr(options, "quiet");
     if(!ThreadIsValid((DWORD)threadid)) //check if the thread is valid
     {
         dprintf(QT_TRANSLATE_NOOP("DBG", "Invalid thread %s\n"), formatpidtid((DWORD)threadid).c_str());
         return false;
     }
+    dbgclearattachmainthread(); //the pause command should respect this explicit choice
     //switch thread
-    if(GetDebugData()->dwThreadId != threadid)
+    auto newThread = ThreadGetHandle((DWORD)threadid);
+    if(hActiveThread != newThread)
     {
-        hActiveThread = ThreadGetHandle((DWORD)threadid);
+        hActiveThread = newThread;
         HistoryClear();
-        DebugUpdateGuiAsync(GetContextDataEx(hActiveThread, UE_CIP), true);
-        dputs(QT_TRANSLATE_NOOP("DBG", "Thread switched!"));
+        if(!quiet)
+        {
+            DebugUpdateGuiAsync(GetContextDataEx(hActiveThread, UE_CIP), true);
+            dputs(QT_TRANSLATE_NOOP("DBG", "Thread switched!"));
+        }
+        else
+        {
+            // Update synchronously so a caller can perform follow-up navigation
+            // without a pending CIP update overriding it.
+            DebugUpdateGui(GetContextDataEx(hActiveThread, UE_CIP), true);
+        }
     }
     return true;
 }

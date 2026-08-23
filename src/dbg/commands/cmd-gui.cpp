@@ -128,30 +128,36 @@ bool cbInstrGraph(int argc, char* argv[])
     if(argc < 2 || !valfromstring(argv[1], &userSelection))
         userSelection = GetContextDataEx(hActiveThread, UE_CIP);
 
-    // Find (heuristic) function entry point from user selection
-    auto functionEntry = std::invoke([userSelection]
+    // Find (heuristic) function entry point from user selection (0 if it cannot be determined)
+    const auto functionEntry = std::invoke([userSelection]
     {
         duint start = 0;
         if(FunctionGet(userSelection, &start))
             return start;
         return ModFunctionEntryGuessFromAddr(userSelection);
     });
-    if(functionEntry == 0)
-        functionEntry = userSelection;
-
-    // Make sure the address is valid
-    duint size = 0;
-    auto base = MemFindBaseAddr(functionEntry, &size);
-    if(!base || !MemIsValidReadPtr(functionEntry))
-    {
-        if(!silent)
-            dprintf(QT_TRANSLATE_NOOP("DBG", "Invalid address %p!\n"), functionEntry);
-        return false;
-    }
 
     // Navigate to user selection in the current graph, get cached graph entry point
     const auto cachedEntry = GuiGraphAt(userSelection);
-    const auto cacheInvalidated = cachedEntry == 0 || cachedEntry != functionEntry;
+
+    // Reuse the cached graph when the selection is inside it, unless the selection
+    // confidently belongs to a different function entry
+    const auto cacheInvalidated = cachedEntry == 0 || (functionEntry != 0 && cachedEntry != functionEntry);
+
+    // Rebuild the graph from the function entry, falling back to the cached entry
+    // (relevant for a forced refresh) and finally the user selection
+    const auto graphEntry = functionEntry != 0 ? functionEntry : (cachedEntry != 0 ? cachedEntry : userSelection);
+
+    // Make sure the address is valid
+    duint size = 0;
+    auto base = MemFindBaseAddr(graphEntry, &size);
+    if(!base || !MemIsValidReadPtr(graphEntry))
+    {
+        if(!silent)
+            dprintf(QT_TRANSLATE_NOOP("DBG", "Invalid address %p!\n"), graphEntry);
+        return false;
+    }
+
     if(forceRefresh || cacheInvalidated)
     {
         const auto modbase = ModBaseFromAddr(base);
@@ -161,9 +167,9 @@ bool cbInstrGraph(int argc, char* argv[])
             size = ModSizeFromAddr(modbase);
         }
 
-        RecursiveAnalysis analysis(base, size, functionEntry, true);
+        RecursiveAnalysis analysis(base, size, graphEntry, true);
         analysis.Analyse();
-        auto graph = analysis.GetFunctionGraph(functionEntry);
+        auto graph = analysis.GetFunctionGraph(graphEntry);
         if(graph == nullptr)
         {
             if(!silent)

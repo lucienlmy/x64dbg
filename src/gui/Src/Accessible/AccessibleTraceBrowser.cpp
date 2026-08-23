@@ -19,48 +19,31 @@ TraceBrowser* AccessibleTraceBrowser::dis() const
 
 bool AccessibleTraceBrowser::isRowSelected(int row) const
 {
-    // row includes title
-    if(row == 0)
-        return false;
-    auto dis = this->dis();
-    return dis->accessibilitySelectedRow() == row - 1;
+    return row >= 0 && row < rowCount() && dis()->accessibilitySelectedRow() == row;
 }
 
 // TODO: multi-selection
 int AccessibleTraceBrowser::selectedRowCount() const
 {
-    // row includes title
-    auto dis = this->dis();
-    dsint sel = dis->getInitialSelection() - dis->getTableOffset();
-    if(sel >= 0 && sel <= dis->getViewableRowsCount())
-        return 1;
-    else
-        return 0;
+    return selectedRows().size();
 }
 
 QList<int> AccessibleTraceBrowser::selectedRows() const
 {
-    auto dis = this->dis();
-    int selectedRow = dis->accessibilitySelectedRow();
-    if(selectedRow != -1)
-        return QList<int>({ selectedRow });
-    else
-        return QList<int>();
+    const int selectedRow = dis()->accessibilitySelectedRow();
+    if(selectedRow >= 0 && selectedRow < rowCount())
+        return QList<int>({selectedRow});
+    return QList<int>();
 }
 
 int AccessibleTraceBrowser::selectedCellCount() const
 {
-    return selectedRowCount();
+    return AccessibleAbstractTableView::selectedCellCount();
 }
 
 QList<QAccessibleInterface*> AccessibleTraceBrowser::selectedCells() const
 {
-    auto dis = this->dis();
-    int selectedRow = dis->accessibilitySelectedRow();
-    if(selectedRow != -1)
-        return QList<QAccessibleInterface*>({ cellAt(selectedRow, selectedColumns().first()) });
-    else
-        return QList<QAccessibleInterface*>();
+    return AccessibleAbstractTableView::selectedCells();
 }
 
 static QString getDisassemblyMnemonicBrief(const Instruction_t & inst)

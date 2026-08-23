@@ -8,6 +8,7 @@ MiniDisassembly::MiniDisassembly(Navigation* navigation, Architecture* architect
     : Disassembly(architecture, true, parent)
     , mNavigation(navigation)
 {
+    setAccessibleName(tr("Disassembly"));
     setupMenu();
 }
 

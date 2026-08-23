@@ -1,6 +1,7 @@
 #pragma once
 #ifndef QT_NO_ACCESSIBILITY
 #include <array>
+#include <vector>
 #include <QAccessibleWidget>
 #include "Gui/RegistersView.h"
 
@@ -45,6 +46,9 @@ public:
     bool isValid() const override;
     QAccessible::State state() const override;
     QRect rect() const override;
+    QAccessibleInterface* interfaceForRegister(RegistersView::REGISTER_NAME reg) const;
+private:
+    std::vector<RegistersView::REGISTER_NAME> registerOrder() const;
 };
 
 #endif

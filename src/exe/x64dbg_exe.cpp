@@ -31,7 +31,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     if(!InitializeSignatureCheck())
         MessageBoxA(nullptr, "Failed to initialize signature check.", "Error", MB_SYSTEMMODAL | MB_ICONERROR);
 
-    //CrashDumpInitialize();
+    CrashDumpInitialize();
 
     const auto startupOptions = ParseHostStartupOptions();
 

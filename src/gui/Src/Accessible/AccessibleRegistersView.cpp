@@ -24,27 +24,32 @@ static bool isFullLineRegister(RegistersView::REGISTER_NAME reg)
            || (reg >= RegistersView::XMM0 && reg <= ArchValue(RegistersView::XMM7, RegistersView::XMM31));
 }
 
-AccessibleRegistersViewItem::AccessibleRegistersViewItem(AccessibleRegistersView* parent, RegistersView::REGISTER_NAME id) : mParent(parent), id(id)
+AccessibleRegistersViewItem::AccessibleRegistersViewItem(AccessibleRegistersView* parent, RegistersView::REGISTER_NAME id)
+    : id(id)
+    , mParent(parent)
 {
 }
 
 QString AccessibleRegistersViewItem::text(QAccessible::Text t) const
 {
-    RegistersView* w = mParent->m_registersView;
+    if(!isValid())
+        return QString();
+
+    RegistersView* view = mParent->m_registersView;
     switch(t)
     {
     case QAccessible::Name:
     case QAccessible::Value:
     {
-        const auto it = w->mRegisterMapping.constFind(id);
-        if(it == w->mRegisterMapping.cend())
+        const auto it = view->mRegisterMapping.constFind(id);
+        if(it == view->mRegisterMapping.cend())
             return QString();
-        if(w->mLABELDISPLAY.contains(id))
-            return QString(it.value()) + " = " + w->GetRegStringValueFromValue(id, w->registerValue(&w->mRegDumpStruct, id)) + ' ' + w->getRegisterLabel(id);
-        return QString(it.value()) + " = " + w->GetRegStringValueFromValue(id, w->registerValue(&w->mRegDumpStruct, id));
+        if(view->mLABELDISPLAY.contains(id))
+            return QString(it.value()) + " = " + view->GetRegStringValueFromValue(id, view->registerValue(&view->mRegDumpStruct, id)) + ' ' + view->getRegisterLabel(id);
+        return QString(it.value()) + " = " + view->GetRegStringValueFromValue(id, view->registerValue(&view->mRegDumpStruct, id));
     }
     case QAccessible::Help:
-        return w->helpRegister(id);
+        return view->helpRegister(id);
     default:
         return QString();
     }
@@ -52,14 +57,11 @@ QString AccessibleRegistersViewItem::text(QAccessible::Text t) const
 
 QColor AccessibleRegistersViewItem::foregroundColor() const
 {
+    if(!isValid())
+        return QColor();
     if(mParent->m_registersView->mRegisterUpdates.contains(id))
-    {
         return ConfigColor("RegistersModifiedColor");
-    }
-    else
-    {
-        return ConfigColor("RegistersColor");
-    }
+    return ConfigColor("RegistersColor");
 }
 
 int AccessibleRegistersViewItem::childCount() const
@@ -69,7 +71,7 @@ int AccessibleRegistersViewItem::childCount() const
 
 QWindow* AccessibleRegistersViewItem::window() const
 {
-    return mParent->window();
+    return mParent ? mParent->window() : nullptr;
 }
 
 QAccessibleInterface* AccessibleRegistersViewItem::parent() const
@@ -79,11 +81,13 @@ QAccessibleInterface* AccessibleRegistersViewItem::parent() const
 
 QAccessibleInterface* AccessibleRegistersViewItem::child(int index) const
 {
+    Q_UNUSED(index);
     return nullptr;
 }
 
 int AccessibleRegistersViewItem::indexOfChild(const QAccessibleInterface* child) const
 {
+    Q_UNUSED(child);
     return -1;
 }
 
@@ -94,24 +98,37 @@ QAccessible::Role AccessibleRegistersViewItem::role() const
 
 QAccessible::State AccessibleRegistersViewItem::state() const
 {
-    QAccessible::State state;
-    const RegistersView* parent = mParent->m_registersView;
-    const bool visible = parent->mRegisterPlaces.contains(id);
-    state.focusable = parent->isActive && visible;
-    state.active = parent->isActive;
-    state.selectable = parent->isActive && visible;
-    state.invisible = !visible;
-    if(visible && parent->mSelected == id)
+    QAccessible::State result;
+    if(!isValid())
     {
-        state.selected = true;
-        if(parent->hasFocus())
-            state.focused = true;
+        result.invalid = true;
+        return result;
     }
-    return state;
+
+    const RegistersView* view = mParent->m_registersView;
+    const bool offscreen = rect().isEmpty();
+    const bool enabled = view->isEnabled() && view->isActive;
+    result.disabled = !enabled;
+    result.focusable = enabled;
+    result.selectable = enabled;
+    // Scrolled-out registers are still valid list items. On Windows, marking
+    // them invisible removes them from UIA sibling navigation; offscreen keeps
+    // them in the tree while accurately reporting their clipped geometry.
+    result.invisible = !view->isVisible();
+    result.offscreen = offscreen;
+    result.readOnly = true;
+    if(view->mSelected == id)
+    {
+        result.selected = true;
+        result.focused = view->hasFocus();
+    }
+    return result;
 }
 
 QAccessibleInterface* AccessibleRegistersViewItem::childAt(int x, int y) const
 {
+    Q_UNUSED(x);
+    Q_UNUSED(y);
     return nullptr;
 }
 
@@ -122,23 +139,25 @@ QObject* AccessibleRegistersViewItem::object() const
 
 void AccessibleRegistersViewItem::setText(QAccessible::Text t, const QString & text)
 {
+    Q_UNUSED(t);
+    Q_UNUSED(text);
 }
 
 QRect AccessibleRegistersViewItem::rect() const
 {
-    const RegistersView* parent = mParent->m_registersView;
-    const QWidget* contentWidget = parent ? parent->widget() : nullptr;
-    if(!parent || !contentWidget)
+    if(!isValid())
         return QRect();
 
-    const auto it = parent->mRegisterPlaces.constFind(id);
-    if(it == parent->mRegisterPlaces.cend())
+    const RegistersView* view = mParent->m_registersView;
+    const QWidget* contentWidget = view->widget();
+    const auto it = view->mRegisterPlaces.constFind(id);
+    if(!contentWidget || it == view->mRegisterPlaces.cend())
         return QRect();
 
-    int ySpace = parent->yTopSpacing;
-    if(parent->mVScrollOffset != 0)
+    int ySpace = view->yTopSpacing;
+    if(view->mVScrollOffset != 0)
         ySpace = 0;
-    const int top = parent->mRowHeight * (it.value().line + parent->mVScrollOffset) + ySpace;
+    const int top = view->mRowHeight * (it.value().line + view->mVScrollOffset) + ySpace;
 
     int left = 0;
     int right = 0;
@@ -148,63 +167,90 @@ QRect AccessibleRegistersViewItem::rect() const
     }
     else
     {
-        left = (1 + it.value().start) * parent->mCharWidth;
-        right = left + ((it.value().labelwidth + it.value().valuesize) * parent->mCharWidth);
+        left = (1 + it.value().start) * view->mCharWidth;
+        right = left + ((it.value().labelwidth + it.value().valuesize) * view->mCharWidth);
     }
 
-    QRect itemRect(QPoint(left, top), QSize(right - left, parent->mRowHeight));
+    QRect itemRect(QPoint(left, top), QSize(right - left, view->mRowHeight));
     QRect globalRect(contentWidget->mapToGlobal(itemRect.topLeft()), itemRect.size());
-    return globalRect.intersected(registersViewportGlobalRect(parent));
+    return globalRect.intersected(registersViewportGlobalRect(view));
 }
 
 bool AccessibleRegistersViewItem::isValid() const
 {
-    return mParent->m_registersView->isActive && mParent->m_registersView->mRegisterPlaces.contains(id);
+    if(!mParent || !mParent->isValid())
+        return false;
+    const int registerIndex = static_cast<int>(id);
+    const RegistersView* view = mParent->m_registersView;
+    return registerIndex >= 0
+           && registerIndex < static_cast<int>(RegistersView::UNKNOWN)
+           && view->mRegisterPlaces.contains(id)
+           && view->mRegisterMapping.contains(id);
 }
 
-AccessibleRegistersView::AccessibleRegistersView(QWidget* w) : QAccessibleWidget(w, QAccessible::List, dynamic_cast<RegistersView*>(w)->accessibleName())
+AccessibleRegistersView::AccessibleRegistersView(QWidget* w)
+    : QAccessibleWidget(w, QAccessible::List, dynamic_cast<RegistersView*>(w)->accessibleName())
+    , m_registersView(dynamic_cast<RegistersView*>(w))
 {
-    m_registersView = dynamic_cast<RegistersView*>(w);
-    for(int i = 0; i < interfaces.size(); i++)
-    {
-        interfaces[i] = QAccessible::registerAccessibleInterface(new AccessibleRegistersViewItem(this, (RegistersView::REGISTER_NAME)i));
-    }
+    assert(m_registersView);
+    interfaces.fill(0);
 }
 
 AccessibleRegistersView::~AccessibleRegistersView()
 {
-    for(const auto & id : interfaces)
+    for(const auto id : interfaces)
     {
         if(id != 0)
             QAccessible::deleteAccessibleInterface(id);
     }
 }
 
+std::vector<RegistersView::REGISTER_NAME> AccessibleRegistersView::registerOrder() const
+{
+    std::vector<RegistersView::REGISTER_NAME> result;
+    if(!m_registersView)
+        return result;
+
+    result.reserve(m_registersView->mRegisterPlaces.size());
+    for(int index = 0; index < static_cast<int>(RegistersView::UNKNOWN); index++)
+    {
+        const auto reg = static_cast<RegistersView::REGISTER_NAME>(index);
+        if(m_registersView->mRegisterPlaces.contains(reg)
+                && m_registersView->mRegisterMapping.contains(reg))
+            result.push_back(reg);
+    }
+    return result;
+}
+
+QAccessibleInterface* AccessibleRegistersView::interfaceForRegister(RegistersView::REGISTER_NAME reg) const
+{
+    const int index = static_cast<int>(reg);
+    if(index < 0
+            || index >= static_cast<int>(RegistersView::UNKNOWN)
+            || !m_registersView->mRegisterPlaces.contains(reg)
+            || !m_registersView->mRegisterMapping.contains(reg))
+        return nullptr;
+
+    auto & accessibleId = interfaces[index];
+    if(accessibleId == 0)
+    {
+        accessibleId = QAccessible::registerAccessibleInterface(
+                           new AccessibleRegistersViewItem(const_cast<AccessibleRegistersView*>(this), reg));
+    }
+    return QAccessible::accessibleInterface(accessibleId);
+}
+
 int AccessibleRegistersView::childCount() const
 {
-    int maxRegister = -1;
-    for(auto it = m_registersView->mRegisterPlaces.cbegin(); it != m_registersView->mRegisterPlaces.cend(); ++it)
-    {
-        const int reg = static_cast<int>(it.key());
-        if(reg > maxRegister)
-            maxRegister = reg;
-    }
-    return maxRegister + 1;
+    return static_cast<int>(registerOrder().size());
 }
 
 QAccessibleInterface* AccessibleRegistersView::child(int index) const
 {
-    if(index >= 0 && index < childCount())
-    {
-        auto & id = interfaces[index];
-        if(id == 0)
-        {
-            id = QAccessible::registerAccessibleInterface(new AccessibleRegistersViewItem(const_cast<AccessibleRegistersView*>(this), (RegistersView::REGISTER_NAME)index));
-        }
-        return QAccessible::accessibleInterface(id);
-    }
-    else
+    const auto order = registerOrder();
+    if(index < 0 || index >= static_cast<int>(order.size()))
         return nullptr;
+    return interfaceForRegister(order[index]);
 }
 
 QAccessibleInterface* AccessibleRegistersView::childAt(int x, int y) const
@@ -218,55 +264,54 @@ QAccessibleInterface* AccessibleRegistersView::childAt(int x, int y) const
         return nullptr;
 
     RegistersView::REGISTER_NAME clickedReg = RegistersView::UNKNOWN;
-    QPoint local = contentWidget->mapFromGlobal(globalPos);
-    if(m_registersView->identifyRegister((local.y() - m_registersView->yTopSpacing) / (double)m_registersView->mRowHeight, local.x() / (double)m_registersView->mCharWidth, &clickedReg))
-        if(clickedReg < RegistersView::UNKNOWN)
-            return child(static_cast<int>(clickedReg));
+    const QPoint local = contentWidget->mapFromGlobal(globalPos);
+    if(m_registersView->identifyRegister((local.y() - m_registersView->yTopSpacing) / static_cast<double>(m_registersView->mRowHeight),
+                                         local.x() / static_cast<double>(m_registersView->mCharWidth), &clickedReg))
+    {
+        if(auto item = interfaceForRegister(clickedReg))
+            return item->rect().contains(globalPos) ? item : nullptr;
+    }
     return nullptr;
 }
 
 int AccessibleRegistersView::indexOfChild(const QAccessibleInterface* child) const
 {
+    if(!child)
+        return -1;
     for(int i = 0; i < childCount(); i++)
     {
-        const QAccessibleInterface* a = this->child(i);
-        if(a == child)
-        {
+        if(this->child(i) == child)
             return i;
-        }
     }
     return -1;
 }
 
 QAccessibleInterface* AccessibleRegistersView::focusChild() const
 {
-    if(m_registersView->mSelected < RegistersView::UNKNOWN)
-        return child(m_registersView->mSelected);
-    else
-        return (QAccessibleInterface*)this;
+    if(!m_registersView->hasFocus())
+        return nullptr;
+    if(auto selected = interfaceForRegister(m_registersView->mSelected))
+        return selected;
+    return const_cast<AccessibleRegistersView*>(this);
 }
 
 bool AccessibleRegistersView::isValid() const
 {
-    return m_registersView->isActive;
+    return QAccessibleWidget::isValid() && m_registersView;
 }
 
 QAccessible::State AccessibleRegistersView::state() const
 {
-    QAccessible::State state;
-    state.focusable = true;
-    if(m_registersView->hasFocus())
-        state.focused = true;
-    state.active = m_registersView->isActive;
-    state.multiLine = true;
-    state.multiSelectable = false;
-    state.disabled = !m_registersView->isActive;
-    state.hasPopup = true;
-    return state;
+    QAccessible::State result = QAccessibleWidget::state();
+    result.disabled = result.disabled || !m_registersView->isActive;
+    result.readOnly = true;
+    result.multiLine = true;
+    result.multiSelectable = false;
+    return result;
 }
 
 QRect AccessibleRegistersView::rect() const
 {
-    return widgetGlobalRect(m_registersView);
+    return QAccessibleWidget::rect();
 }
 #endif

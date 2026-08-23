@@ -46,6 +46,7 @@ TraceBrowser::TraceBrowser(TraceFileReader* traceFile, TraceWidget* parent) : Ab
     setupRightClickContextMenu();
 
     Initialize();
+    tokenizerConfigUpdatedSlot();
 
     connect(Bridge::getBridge(), SIGNAL(updateTraceBrowser()), this, SLOT(updateSlot()));
     connect(Bridge::getBridge(), SIGNAL(gotoTraceIndex(duint)), this, SLOT(gotoIndexSlot(duint)));
@@ -80,13 +81,15 @@ bool TraceBrowser::toggleTraceRecording(QWidget* parent)
     }
     else
     {
+        duint saveInProgramDir = 0;
+        BridgeSettingGetUint("Engine", "SaveDatabaseInProgramDirectory", &saveInProgramDir);
         auto extension = ArchValue(".trace32", ".trace64");
         BrowseDialog browse(
             parent,
             tr("Start trace recording"),
             tr("Trace recording file"),
             tr("Trace recordings (*%1);;All files (*.*)").arg(extension),
-            getDbPath(mainModuleName() + extension, true),
+            saveInProgramDir ? getProgramPath(mainModuleName() + extension, true) : getDbPath(mainModuleName() + extension, true),
             true
         );
         if(browse.exec() == QDialog::Accepted)

@@ -202,6 +202,9 @@ link-libraries = [
     "Wintrust",
 ]
 msvc.link-options = [
+    # resource.rc already embeds manifest.xml as RT_MANIFEST, so disable the
+    # linker's default manifest to avoid embedding a second one.
+    "/MANIFEST:NO",
     "/DELAYLOAD:user32.dll",
     "/DELAYLOAD:wintrust.dll",
     "/DELAYLOAD:$<TARGET_FILE_NAME:bridge>",
@@ -213,7 +216,13 @@ msvc.link-libraries = [
     "Delayimp",
 ]
 # Make the executable build everything
-dependencies = ["dbg", "gui", "loaddll", "deps"]
+dependencies = [
+    "dbg",
+    "gui",
+    "loaddll",
+    "deps",
+    "third_party",
+]
 x86.dependencies = ["launcher"]
 
 [target.exe.properties]
@@ -270,6 +279,11 @@ sources = [
     "src/exe/icon.rc",
     "src/exe/resource.rc",
     "src/exe/strings_utf8.rc",
+]
+msvc.link-options = [
+    # resource.rc already embeds manifest.xml as RT_MANIFEST, so disable the
+    # linker's default manifest to avoid embedding a second one.
+    "/MANIFEST:NO",
 ]
 link-libraries = [
     "Shlwapi",

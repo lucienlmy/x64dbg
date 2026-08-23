@@ -18,30 +18,27 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool read(duint addr, void* dest, duint size) override
     {
-        if(mParser == nullptr)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
+        const auto offset = addr - block->BaseAddress;
+        if(size > block->DataSize - offset)
             return false;
 
-        auto rva = addr - block->BaseAddress;
-
-        // TODO: support page alignment zeroes
-        if(rva + size >= block->DataSize)
+        // TODO: support page alignment zeroes (might not be relevant anymore)
+        auto data = mParser->ReadMemory(addr, size);
+        if(!data || data->size() != size)
             return false;
 
-        memcpy(dest, block->Data + rva, size);
+        memcpy(dest, data->data(), size);
         return true;
     }
 
     bool getRange(duint addr, duint & base, duint & size) override
     {
-        if(mParser == nullptr)
-            return false;
-
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
         base = block->BaseAddress;
@@ -51,8 +48,8 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool isCodePtr(duint addr) override
     {
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
+        auto block = getDumpedBlock(addr);
+        if(block == nullptr)
             return false;
 
         switch(block->Protect & 0xFF)
@@ -69,13 +66,23 @@ struct DumpMemoryProvider : MemoryProvider
 
     bool isValidPtr(duint addr) override
     {
-        auto block = mParser->GetMemBlock(addr);
-        if(block == nullptr || block->State == MEM_FREE)
-            return false;
-        return true;
+        return getDumpedBlock(addr) != nullptr;
     }
 
 private:
+    const udmpparser::MemBlock_t* getDumpedBlock(duint addr) const
+    {
+        if(mParser == nullptr)
+            return nullptr;
+
+        auto block = mParser->GetMemBlock(addr);
+        if(block == nullptr || block->State == MEM_FREE || addr < block->BaseAddress)
+            return nullptr;
+
+        const auto offset = addr - block->BaseAddress;
+        return offset < block->DataSize ? block : nullptr;
+    }
+
     udmpparser::UserDumpParser* mParser = nullptr;
 };
 
@@ -562,8 +569,8 @@ std::unique_ptr<FileParser> FileParser::Create(const uint8_t* begin, const uint8
     if(memcmp(magic, mdmpMagic, sizeof(mdmpMagic)) == 0)
     {
         auto parser = std::make_unique<DmpFileParser>();
-        udmpparser::MemoryView_t memoryView(begin, end);
-        if(!parser->mDmp.Parse(memoryView))
+        auto memoryReader = std::make_shared<udmpparser::MemoryReader_t>(std::span<uint8_t>((uint8_t*)begin, (uint8_t*)end));
+        if(!parser->mDmp.Parse(memoryReader))
         {
             error = "Minidump parsing failed!";
             return nullptr;

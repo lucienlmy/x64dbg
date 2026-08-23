@@ -37,6 +37,13 @@ BOOL
 
 void CrashDumpInitialize()
 {
+    // The error mode is inherited from the parent process. Shells like cygwin
+    // (git bash) and node.js set SEM_NOGPFAULTERRORBOX, which makes unhandled
+    // exceptions terminate the process silently, without WER involvement (no
+    // crash dump, no JIT debugger). Reset it so crashes are always reported.
+    // SEM_FAILCRITICALERRORS is kept to avoid legacy hard error popups.
+    SetErrorMode(SEM_FAILCRITICALERRORS);
+
     // Get handles to kernel32 and dbghelp
     HMODULE hDbghelp = LoadLibraryCheckedW(L"dbghelp.dll", false);
 

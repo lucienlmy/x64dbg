@@ -35,8 +35,17 @@ Exports used by the scripts:
 - `StartCrossPageRead`
 - `CrossPageWriteSequence`
 - `StartCrossPageWrite`
+- `ReadTwoTargetsSequence`
+- `WriteReadTargetSequence`
+- `WriteTwoTargetsSequence`
+- `AdjacentPointer`
+- `AdjacentReadSequence`
+- `StartAdjacentRead`
+- `LargePointer`
+- `LargeRangeSequence`
+- `StartLargeRange`
 
-A large padding block forces `ReadTarget` and `WriteTarget` onto a later page while keeping them in the same merged region as the code. Additional helpers cover repeated accesses, callback mutation scenarios, and exact ranges that cross a page boundary.
+A large padding block forces `ReadTarget` and `WriteTarget` onto a later page while keeping them in the same merged region as the code. Additional helpers cover repeated accesses, callback mutation scenarios, exact ranges that cross a page boundary, adjacent independent allocations, and a 32K-page range.
 
 ## Variant scripts
 
@@ -66,10 +75,16 @@ The directory now uses multiple scripts handled by `src/tests/run.py`:
 - `test.range-callback-delete.txt` -> `membp/range-callback-delete`
 - `test.range-callback-add.txt` -> `membp/range-callback-add`
 - `test.range-same-page-delete-one.txt` -> `membp/range-same-page-delete-one`
+- `test.range-same-page-same-type.txt` -> `membp/range-same-page-same-type`
+- `test.range-same-page-mixed-ignore-read.txt` -> `membp/range-same-page-mixed-ignore-read`
+- `test.range-same-page-mixed-ignore-write.txt` -> `membp/range-same-page-mixed-ignore-write`
+- `test.range-shared-boundary-type-isolation.txt` -> `membp/range-shared-boundary-type-isolation`
 - `test.range-cross-page-read.txt` -> `membp/range-cross-page-read`
 - `test.range-cross-page-write.txt` -> `membp/range-cross-page-write`
 - `test.range-adjacent-cross-page-read.txt` -> `membp/range-adjacent-cross-page-read`
 - `test.range-three-page-read.txt` -> `membp/range-three-page-read`
+- `test.range-adjacent-allocations.txt` -> `membp/range-adjacent-allocations`
+- `test.range-large-32k-pages.txt` -> `membp/range-large-32k-pages`
 - `test.range-multithread-read.txt` -> `membp/range-multithread-read`
 - `test.range-stress-access.txt` -> `membp/range-stress-access`
 - `test.exitprocess-assert.txt` -> `membp/exitprocess-assert`

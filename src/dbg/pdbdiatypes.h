@@ -62,6 +62,7 @@ struct DiaSymbol_t
     DiaCallingConvention convention = DiaCallingConvention::UNKNOWN;
     bool perfectSize = false;
     bool publicSymbol = false;
+    bool function = false;
     std::string name;
     std::string undecoratedName;
 };

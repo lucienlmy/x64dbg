@@ -33,6 +33,7 @@ class TestCase:
     runtime_script: Path
     debuggee: Path
     plugins: list[Path]
+    driver: Path | None
     fallback_check: Path | None
     absolute_command_file: bool
 
@@ -86,6 +87,18 @@ def path_arg(path: Path, cwd: Path) -> str:
         return str(path)
 
 
+def timeout_output(output: str | bytes | None) -> str:
+    if isinstance(output, bytes):
+        return output.decode("utf-8", errors="replace")
+    return output or ""
+
+
+def process_exit_reason(prefix: str, returncode: int) -> str:
+    if os.name == "nt" and (returncode < 0 or returncode > 0xFF):
+        return f"{prefix}_0x{returncode & 0xFFFFFFFF:08X}"
+    return f"{prefix}_{returncode}"
+
+
 def parse_test_variant(script_name: str) -> str | None:
     if not script_name.startswith("test") or not script_name.endswith(".txt"):
         return None
@@ -106,13 +119,21 @@ def test_id_from_rel(rel_dir: str, variant: str) -> str:
     return f"{rel_dir}/{variant}" if rel_dir else variant
 
 
-def variant_check_path(source_dir: Path, variant: str) -> Path | None:
+def variant_python_hook_path(source_dir: Path, variant: str, stem: str) -> Path | None:
     if variant:
-        check_path = source_dir / f"check.{variant}.py"
-        if check_path.is_file():
-            return check_path
-    check_path = source_dir / "check.py"
-    return check_path if check_path.is_file() else None
+        hook_path = source_dir / f"{stem}.{variant}.py"
+        if hook_path.is_file():
+            return hook_path
+    hook_path = source_dir / f"{stem}.py"
+    return hook_path if hook_path.is_file() else None
+
+
+def variant_check_path(source_dir: Path, variant: str) -> Path | None:
+    return variant_python_hook_path(source_dir, variant, "check")
+
+
+def variant_driver_path(source_dir: Path, variant: str) -> Path | None:
+    return variant_python_hook_path(source_dir, variant, "driver")
 
 
 def discover_tests(repo_root: Path, arch: str, requested: set[str], validate_runtime: bool = True) -> list[TestCase]:
@@ -145,6 +166,7 @@ def discover_tests(repo_root: Path, arch: str, requested: set[str], validate_run
                 runtime_script=runtime_script,
                 debuggee=debuggee,
                 plugins=sorted(runtime_dir.glob(f"*{plugin_suffix}")),
+                driver=variant_driver_path(script.parent, variant),
                 fallback_check=variant_check_path(script.parent, variant),
                 absolute_command_file=(script.parent / ABSOLUTE_CF_MARKER).is_file(),
             )
@@ -254,6 +276,61 @@ def run_fallback_check(check_path: Path, log_path: Path, userdir: Path, runtime_
     return True, "pass"
 
 
+def run_driver_test(headless: Path, test: TestCase, timeout: int, artifact_dir: Path, userdir: Path, log_path: Path, stdout_path: Path, engine: str, no_console_window: bool) -> TestResult:
+    assert test.driver is not None
+    command = [
+        sys.executable,
+        str(test.driver),
+        "--headless",
+        str(headless),
+        "--debuggee",
+        str(test.debuggee),
+        "--script",
+        str(test.runtime_script),
+        "--runtime-dir",
+        str(test.runtime_dir),
+        "--userdir",
+        str(userdir),
+        "--log",
+        str(log_path),
+        "--artifacts-dir",
+        str(artifact_dir),
+        "--engine",
+        engine,
+        "--timeout",
+        str(timeout),
+    ]
+    if no_console_window:
+        command.append("--no-console-window")
+
+    try:
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        completed = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=timeout + 15,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=creationflags,
+        )
+        stdout_path.write_text(completed.stdout, encoding="utf-8", errors="replace")
+    except subprocess.TimeoutExpired as exc:
+        stdout_path.write_text(timeout_output(exc.stdout) + "\n[DRIVER TIMEOUT]\n", encoding="utf-8", errors="replace")
+        return TestResult(test.rel, False, "driver_timeout", None, None, artifact_dir)
+
+    passed, asserts, reason = parse_final_line(log_path)
+    if completed.returncode != 0:
+        passed = False
+        if reason in {"pass", "missing_final"}:
+            reason = process_exit_reason("driver_exit", completed.returncode)
+    if passed and test.fallback_check is not None:
+        passed, reason = run_fallback_check(test.fallback_check, log_path, userdir, test.runtime_dir, artifact_dir)
+
+    return TestResult(test.rel, passed, reason, asserts, completed.returncode, artifact_dir)
+
+
 def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, engine: str, no_console_window: bool) -> TestResult:
     artifact_dir = artifact_root / test.rel.replace("/", "__")
     if artifact_dir.exists():
@@ -265,6 +342,9 @@ def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, 
     write_headless_ini(userdir, engine, no_console_window)
     log_path = artifact_dir / "debug.log"
     stdout_path = artifact_dir / "stdout.txt"
+
+    if test.driver is not None:
+        return run_driver_test(headless, test, timeout, artifact_dir, userdir, log_path, stdout_path, engine, no_console_window)
 
     headless_dir = headless.parent
     command = [
@@ -301,14 +381,14 @@ def run_test(headless: Path, test: TestCase, timeout: int, artifact_root: Path, 
         )
         stdout_path.write_text(completed.stdout, encoding="utf-8", errors="replace")
     except subprocess.TimeoutExpired as exc:
-        stdout_path.write_text((exc.stdout or "") + "\n[TIMEOUT]\n", encoding="utf-8", errors="replace")
+        stdout_path.write_text(timeout_output(exc.stdout) + "\n[TIMEOUT]\n", encoding="utf-8", errors="replace")
         return TestResult(test.rel, False, "timeout", None, None, artifact_dir)
 
     passed, asserts, reason = parse_final_line(log_path)
     if completed.returncode != 0:
         passed = False
         if reason == "pass":
-            reason = f"process_exit_{completed.returncode}"
+            reason = process_exit_reason("process_exit", completed.returncode)
     if passed and test.fallback_check is not None:
         passed, reason = run_fallback_check(test.fallback_check, log_path, userdir, test.runtime_dir, artifact_dir)
 

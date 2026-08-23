@@ -56,6 +56,7 @@ struct SymbolInfo : SymbolInfoGui
     String decoratedName;
     String undecoratedName;
     bool publicSymbol = false;
+    bool functionSymbol = false;
 
     void convertToGuiSymbol(duint modbase, SYMBOLINFO* info) const override
     {

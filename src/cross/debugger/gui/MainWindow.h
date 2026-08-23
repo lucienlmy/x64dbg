@@ -19,8 +19,6 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;
 
-    static void loadTheme();
-
 private slots:
     void onOpen();
     void onContinue() const;

@@ -19,52 +19,45 @@ HexDump* AccessibleHexDump::dump() const
 
 static int findFirstSelection(HexDump* dump)
 {
-    auto sel = dump->getInitialSelection();
-    if(sel >= dump->getTableOffsetRva() && sel <= dump->getTableOffsetRva() + dump->getViewableRowsCount() * dump->getBytePerRowCount())
-        return (dump->getInitialSelection() - dump->getTableOffsetRva()) / dump->getBytePerRowCount();
-    else
+    const duint bytesPerRow = dump->getBytePerRowCount();
+    if(bytesPerRow == 0)
         return -1;
+
+    const duint selection = dump->getInitialSelection();
+    const duint firstAddress = dump->getTableOffsetRva();
+    const duint visibleSize = dump->getViewableRowsCount() * bytesPerRow;
+    if(selection >= firstAddress && selection - firstAddress < visibleSize)
+        return static_cast<int>((selection - firstAddress) / bytesPerRow);
+    return -1;
 }
 
 bool AccessibleHexDump::isRowSelected(int row) const
 {
-    // row includes title
-    return row - 1 == findFirstSelection(dump());
+    return row >= 0 && row < rowCount() && row == findFirstSelection(dump());
 }
 
 // TODO: multi-selection
 int AccessibleHexDump::selectedRowCount() const
 {
-    // row includes title
-    auto dump = this->dump();
-    auto sel = dump->getInitialSelection();
-    if(sel >= dump->getTableOffsetRva() && sel <= dump->getTableOffsetRva() + dump->getViewableRowsCount() * dump->getBytePerRowCount())
-        return 1;
-    else
-        return 0;
+    return selectedRows().size();
 }
 
 QList<int> AccessibleHexDump::selectedRows() const
 {
-    int selectedRow = findFirstSelection(dump());
-    if(selectedRow != -1)
-        return QList<int>({ selectedRow });
-    else
-        return QList<int>();
+    const int selectedRow = findFirstSelection(dump());
+    if(selectedRow >= 0 && selectedRow < rowCount())
+        return QList<int>({selectedRow});
+    return QList<int>();
 }
 
 int AccessibleHexDump::selectedCellCount() const
 {
-    return selectedRowCount();
+    return AccessibleAbstractTableView::selectedCellCount();
 }
 
 QList<QAccessibleInterface*> AccessibleHexDump::selectedCells() const
 {
-    int selectedRow = findFirstSelection(dump());
-    if(selectedRow != -1)
-        return QList<QAccessibleInterface*>({ cellAt(selectedRow, selectedColumns().first()) });
-    else
-        return QList<QAccessibleInterface*>();
+    return AccessibleAbstractTableView::selectedCells();
 }
 
 QString AccessibleHexDump::getCellContent(int row, int col) const

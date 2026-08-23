@@ -14,6 +14,7 @@
 #endif
 
 #include "RegistersView.h"
+#include "Accessible/AccessibleRegistersView.h"
 #include "Configuration.h"
 #include "MiscUtil.h"
 #include "Disassembler/ZydisTokenizer.h"
@@ -746,6 +747,22 @@ void RegistersView::InitMappings()
     mRegisterRelativePlaces.insert(DR7, Register_Relative_Position(DR6, UNKNOWN));
 
     mRowsNeeded = offset + 1;
+
+    // Discard updates for registers that are no longer mapped: the loop in setRegisters() only
+    // visits keys present in mRegisterMapping and cannot drop them once the register set shrinks.
+    for(auto it = mRegisterUpdates.begin(); it != mRegisterUpdates.end();)
+    {
+        if(!mRegisterMapping.contains(*it))
+            it = mRegisterUpdates.erase(it);
+        else
+            ++it;
+    }
+
+    if(QAccessible::isActive() && isVisible())
+    {
+        QAccessibleEvent reorderEvent(static_cast<RegistersView*>(this), QAccessible::ObjectReorder);
+        QAccessible::updateAccessibility(&reorderEvent);
+    }
 }
 
 RegistersView::REGDUMP_EXTENDED RegistersView::expandContext(const REGDUMP* reg)
@@ -2017,7 +2034,7 @@ QString RegistersView::getRegisterLabel(REGISTER_NAME register_selected)
     bool hasLabel = DbgGetLabelAt(register_value, SEG_DEFAULT, label_text);
     bool hasModule = DbgGetModuleAt(register_value, module_text);
     bool hasStatusCode = register_selected == REGISTER_NAME::CAX && (register_value & ArchValue(0xF0000000, 0xFFFFFFFFF0000000)) == 0xC0000000;
-    hasStatusCode = hasStatusCode && DbgFunctions()->StringFormatInline(QString::asprintf("{ntstatus@%X}", register_value).toUtf8().constData(), sizeof(status_text), status_text);
+    hasStatusCode = hasStatusCode && DbgFunctions()->StringFormatInline(QString::asprintf("{ntstatus@%X}", static_cast<unsigned int>(register_value)).toUtf8().constData(), sizeof(status_text), status_text);
 
     if(hasString && !mONLYMODULEANDLABELDISPLAY.contains(register_selected))
     {
@@ -2678,59 +2695,46 @@ void RegistersView::onSIMDMode()
 #endif
 }
 
+static bool isXmmRegisterNonZero(const XMMREGISTER& reg)
+{
+    return reg.Low != 0 || reg.High != 0;
+}
+
+static bool isZmmRegisterNonZero(const ZMMREGISTER& reg)
+{
+    return isXmmRegisterNonZero(reg.Low.Low)
+           || isXmmRegisterNonZero(reg.Low.High)
+           || isXmmRegisterNonZero(reg.High.Low)
+           || isXmmRegisterNonZero(reg.High.High);
+}
+
 // detect XMM/YMM/ZMM Mode. Return 2 if AVX-512 states are nonzero, 1 if AVX states are nonzero, 0 if AVX states are all zero.
 static int detectXMMMode(const ZMMREGISTER* ZmmRegisters)
 {
-    __m128 AVX_High = _mm_loadu_ps((const float*)&ZmmRegisters[0].Low.High); // TODO: Misaligned / Alignment check
-    __m128 AVX512_High = _mm_loadu_ps((const float*)&ZmmRegisters[0].High.Low);
-    AVX512_High = _mm_or_ps(AVX512_High, _mm_loadu_ps((float*)&ZmmRegisters[0].High.High));
-    for(int i = 1; i < ArchValue(8, 32); i++)
+    bool avxHigh = false;
+    for(int i = 0; i < ArchValue(8, 32); i++)
     {
-        AVX_High = _mm_or_ps(AVX_High, _mm_loadu_ps((const float*)&ZmmRegisters[i].Low.High));
-        AVX512_High = _mm_or_ps(AVX512_High, _mm_loadu_ps((const float*)&ZmmRegisters[i].High.Low));
-        AVX512_High = _mm_or_ps(AVX512_High, _mm_loadu_ps((const float*)&ZmmRegisters[i].High.High));
+        avxHigh = avxHigh || isXmmRegisterNonZero(ZmmRegisters[i].Low.High);
+        if(isXmmRegisterNonZero(ZmmRegisters[i].High.Low)
+                || isXmmRegisterNonZero(ZmmRegisters[i].High.High))
+            return 2; // AVX-512 states are nonzero
     }
-    quint64* AVXDetectPtr;
-    AVXDetectPtr = (quint64*)&AVX512_High;
-    if(AVXDetectPtr[0] | AVXDetectPtr[1])
-    {
-        return 2; // AVX-512 states are nonzero
-    }
-    else
-    {
-        AVXDetectPtr = (quint64*)&AVX_High;
-        if(AVXDetectPtr[0] | AVXDetectPtr[1])
-        {
-            return 1; // AVX states are nonzero
-        }
-        else
-        {
-            return 0; // Just show SSE states
-        }
-    }
+    return avxHigh ? 1 : 0;
 }
 
 static bool detectAVX512Used(const REGISTERCONTEXT_AVX512* context)
 {
-    __m128 temp = _mm_loadu_ps((const float*)&context->Opmask[0]);
-    quint64* ptr = (quint64*)&temp;
-    for(int i = 1; i <= 3; i++)
-        temp = _mm_or_ps(temp, _mm_loadu_ps((const float*)&context->Opmask[i * 2]));
-    if(ptr[0] | ptr[1])
-        return true; // AVX-512 states are nonzero (opmask)
+    for(int i = 0; i < 8; i++)
+    {
+        if(context->Opmask[i] != 0)
+            return true; // AVX-512 states are nonzero (opmask)
+    }
 #if defined(_WIN64) || defined(__x86_64__)
     for(int i = 16; i <= 31; i++)
     {
-        __m128 temp2[2];
-        temp2[0] = _mm_loadu_ps((const float*)&context->ZmmRegisters[i].Low.Low);
-        temp2[1] = _mm_loadu_ps((const float*)&context->ZmmRegisters[i].Low.High);
-        temp2[0] = _mm_or_ps(temp2[0], _mm_loadu_ps((const float*)&context->ZmmRegisters[i].Low.High));
-        temp2[1] = _mm_or_ps(temp2[1], _mm_loadu_ps((const float*)&context->ZmmRegisters[i].High.High));
-        temp = _mm_or_ps(temp, temp2[0]);
-        temp = _mm_or_ps(temp, temp2[1]);
+        if(isZmmRegisterNonZero(context->ZmmRegisters[i]))
+            return true; // AVX-512 states are nonzero (ZMM16-ZMM31)
     }
-    if(ptr[0] | ptr[1])
-        return true; // AVX-512 states are nonzero (ZMM16-ZMM31)
 #endif //defined(_WIN64) || defined(__x86_64__)
     return false;
 }
@@ -3475,47 +3479,69 @@ void RegistersView::autoUpdateXMMModesAndRefresh()
     emit refresh();
 }
 
-// Send focused accessibility event
+// Send selection and focus accessibility events
 void RegistersView::accessibilitySelectionChanged()
 {
-    if(QAccessible::isActive())
+    if(!QAccessible::isActive())
+        return;
+
+    auto accessible = dynamic_cast<AccessibleRegistersView*>(QAccessible::queryAccessibleInterface(this));
+    if(!accessible)
+        return;
+
+    if(mAccessibilityPreviousSelected < REGISTER_NAME::UNKNOWN && mAccessibilityPreviousSelected != mSelected)
     {
-        QAccessibleEvent updateEvent(static_cast<RegistersView*>(this), QAccessible::Selection);
-        QAccessible::updateAccessibility(&updateEvent);
-        if(mSelected < REGISTER_NAME::UNKNOWN)
+        if(auto previousItem = accessible->interfaceForRegister(mAccessibilityPreviousSelected))
         {
-            QAccessibleInterface* a = QAccessible::queryAccessibleInterface(this);
-            if(a)
+            QAccessibleEvent removeEvent(previousItem, QAccessible::SelectionRemove);
+            QAccessible::updateAccessibility(&removeEvent);
+        }
+    }
+
+    if(mSelected < REGISTER_NAME::UNKNOWN)
+    {
+        if(auto selectedItem = accessible->interfaceForRegister(mSelected))
+        {
+            if(mAccessibilityPreviousSelected != mSelected)
             {
-                QAccessibleEvent focusEvent(a->child(mSelected), QAccessible::Focus);
+                QAccessibleEvent selectionEvent(selectedItem, QAccessible::SelectionAdd);
+                QAccessible::updateAccessibility(&selectionEvent);
+            }
+            if(hasFocus())
+            {
+                QAccessibleEvent focusEvent(selectedItem, QAccessible::Focus);
                 QAccessible::updateAccessibility(&focusEvent);
             }
         }
-        else
-        {
-            QAccessibleEvent focusEvent(static_cast<RegistersView*>(this), QAccessible::Focus);
-            QAccessible::updateAccessibility(&focusEvent);
-        }
     }
+    else if(hasFocus())
+    {
+        QAccessibleEvent focusEvent(static_cast<RegistersView*>(this), QAccessible::Focus);
+        QAccessible::updateAccessibility(&focusEvent);
+    }
+    mAccessibilityPreviousSelected = mSelected;
 }
 
 // Send value changed accessibility event
 void RegistersView::accessibilityValueChanged()
 {
-    if(QAccessible::isActive() && !mRegisterUpdates.empty())
+    if(!QAccessible::isActive() || mRegisterUpdates.empty())
+        return;
+
+    auto accessible = dynamic_cast<AccessibleRegistersView*>(QAccessible::queryAccessibleInterface(this));
+    if(!accessible)
+        return;
+    for(const auto reg : mRegisterUpdates)
     {
-        QAccessibleInterface* a = QAccessible::queryAccessibleInterface(this);
-        for(auto & i : mRegisterUpdates)
+        if(auto item = accessible->interfaceForRegister(reg))
         {
-            if(i < REGISTER_NAME::UNKNOWN)
-            {
-                if(a)
-                {
-                    QAccessibleInterface* child = a->child(i);
-                    QAccessibleValueChangeEvent valueChangeEvent(child, QVariant(child->text(QAccessible::Value)));
-                    QAccessible::updateAccessibility(&valueChangeEvent);
-                }
-            }
+            // Narrator listens for ValueChanged on register list items. The
+            // displayed value is textual (and may include a symbol), so expose
+            // the same string through QAccessible::Value without claiming a
+            // numeric QAccessibleValueInterface.
+            QAccessibleValueChangeEvent valueChangeEvent(
+                item, QVariant(item->text(QAccessible::Value)));
+            QAccessible::updateAccessibility(&valueChangeEvent);
         }
     }
 }
