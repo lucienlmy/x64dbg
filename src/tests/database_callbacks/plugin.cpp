@@ -23,10 +23,14 @@ namespace
     int gPluginHandle = 0;
     std::vector<TestOperation> operations;
     bool gOpLogEnabled = false;
+    bool gReentrantCommentSetPending = false;
+    duint gReentrantCommentAddress = 0;
+    std::string gReentrantCommentText;
 
     void resetState()
     {
         operations.clear();
+        gReentrantCommentSetPending = false;
     }
 
     void printOperation(const DbOperation & op, bool dbLoad)
@@ -114,6 +118,14 @@ namespace
         if(cbType == CB_DBOPERATION || cbType == CB_DBLOADOPERATION)
         {
             auto info = (PLUG_CB_DBOPERATION*) callbackInfo;
+
+            if(cbType == CB_DBOPERATION && gReentrantCommentSetPending)
+            {
+                gReentrantCommentSetPending = false;
+                char command[MAX_SETTING_SIZE];
+                sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gReentrantCommentAddress, gReentrantCommentText.c_str());
+                _plugin_testassert(DbgCmdExecDirect(command), "reentrant command failed: %s", command);
+            }
 
             for(size_t i = 0; i < info->count; i ++)
             {
@@ -265,6 +277,27 @@ namespace
         _plugin_logprintf("oplog state: %s\n", gOpLogEnabled ? "on" : "off");
         return true;
     }
+
+    bool cbReentrantCommentSet(int argc, char** argv)
+    {
+        if(argc != 3)
+            return false;
+
+        gReentrantCommentAddress = evalExpr(argv[1]);
+        gReentrantCommentText = argv[2];
+        gReentrantCommentSetPending = true;
+        return _plugin_testassert(gReentrantCommentAddress != 0, "failed to resolve reentrant comment address '%s'", argv[1]);
+    }
+}
+
+extern "C" __declspec(dllexport) void CBDBOPERATION(CBTYPE cbType, void* callbackInfo)
+{
+    cbPlugin(cbType, callbackInfo);
+}
+
+extern "C" __declspec(dllexport) void CBDBLOADOPERATION(CBTYPE cbType, void* callbackInfo)
+{
+    cbPlugin(cbType, callbackInfo);
 }
 
 extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
@@ -273,11 +306,10 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     initStruct->sdkVersion = PLUG_SDKVERSION;
     strncpy_s(initStruct->pluginName, sizeof(initStruct->pluginName), X64DBG_TEST_NAME, _TRUNCATE);
     gPluginHandle = initStruct->pluginHandle;
-    _plugin_registercallback(gPluginHandle, CB_DBOPERATION, cbPlugin);
-    _plugin_registercallback(gPluginHandle, CB_DBLOADOPERATION, cbPlugin);
     _plugin_registercallback(gPluginHandle, CB_INITDEBUG, cbPlugin);
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
     _plugin_registercommand(gPluginHandle, "dboplog", cbOpLog, false);
+    _plugin_registercommand(gPluginHandle, "dbreentrantcommentset", cbReentrantCommentSet, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
     return true;

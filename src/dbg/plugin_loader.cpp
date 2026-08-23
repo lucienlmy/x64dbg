@@ -432,6 +432,7 @@ bool pluginload(const char* pluginName, bool loadall)
     regExport("CBVALTOSTRING", CB_VALTOSTRING);
     regExport("CBMENUPREPARE", CB_MENUPREPARE);
     regExport("CBDBOPERATION", CB_DBOPERATION);
+    regExport("CBDBLOADOPERATION", CB_DBLOADOPERATION);
 
     // Add plugin menus
     {
