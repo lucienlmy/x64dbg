@@ -4,6 +4,7 @@
 #include "debugger.h"
 #include "module.h"
 #include "function.h"
+#include "database_cb_batcher.h"
 
 FunctionPass::FunctionPass(duint VirtualStart, duint VirtualEnd, BBlockArray & MainBlocks)
     : AnalysisPass(VirtualStart, VirtualEnd, MainBlocks)
@@ -59,6 +60,7 @@ bool FunctionPass::Analyse()
 
     dprintf(QT_TRANSLATE_NOOP("DBG", "%u functions\n"), DWORD(funcs.size()));
 
+    DbCallbackBatcher batcher;
     FunctionDelRange(m_VirtualStart, m_VirtualEnd - 1, false);
     for(auto & func : funcs)
     {

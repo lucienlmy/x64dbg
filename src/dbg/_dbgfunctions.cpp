@@ -576,4 +576,12 @@ void dbgfunctionsinit()
         memcpy(result, escaped.c_str(), escaped.size() + 1);
         return true;
     };
+    _dbgfunctions.ModNameFromHash = [](duint hash, char* modname)
+    {
+        auto name = ModNameFromHash(hash);
+        if(name.empty())
+            return false;
+        strncpy_s(modname, MAX_MODULE_SIZE, name.c_str(), _TRUNCATE);
+        return true;
+    };
 }

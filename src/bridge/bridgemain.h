@@ -3,6 +3,7 @@
 
 #include <Windows.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #ifndef __cplusplus
 #include <stdbool.h>
