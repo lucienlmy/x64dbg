@@ -2,6 +2,7 @@
 #include "module.h"
 #include "memory.h"
 #include "threading.h"
+#include "database_cb_batcher.h"
 
 struct ArgumentSerializer : JSONWrapper<ARGUMENTSINFO>
 {
@@ -47,6 +48,17 @@ protected:
     ModuleRange makeKey(const ARGUMENTSINFO & value) const override
     {
         return ModuleRange(value.modhash, Range(value.start, value.end));
+    }
+
+    bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value) const override
+    {
+        op.itemType = DbItemTypeArgument;
+        op.manual = value.manual;
+        op.modhash = value.modhash;
+        op.address = value.start;
+        op.end = value.end;
+        op.icount = value.instructioncount;
+        return true;
     }
 };
 
@@ -112,7 +124,7 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
     // 0x00000000 - 0xFFFFFFFF
     if(Start == 0 && End == ~0)
     {
-        ArgumentClear();
+        ArgumentClear(false);
     }
     else
     {
@@ -125,6 +137,8 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
         // Convert these to a relative offset
         Start -= moduleBase;
         End -= moduleBase;
+
+        DbCallbackBatcher batcher;
 
         arguments.DeleteWhere([ = ](const ARGUMENTSINFO & value)
         {
@@ -142,12 +156,14 @@ void ArgumentCacheSave(JSON Root)
 
 void ArgumentCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher(true);
     arguments.CacheLoad(Root);
 }
 
-void ArgumentClear()
+void ArgumentClear(bool Terminating)
 {
-    arguments.Clear();
+    DbCallbackBatcher batcher;
+    arguments.Clear(Terminating);
 }
 
 void ArgumentGetList(std::vector<ARGUMENTSINFO> & list)

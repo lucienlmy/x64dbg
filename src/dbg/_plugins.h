@@ -28,6 +28,24 @@
 #define PLUG_DB_LOADSAVE_DATA 1
 #define PLUG_DB_LOADSAVE_ALL 2
 
+#if defined(__cplusplus)
+#define ENUM_U8_BEGIN(name) typedef enum : uint8_t
+#define ENUM_U8_END(name) name
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define ENUM_U8_BEGIN(name) typedef enum : uint8_t
+#define ENUM_U8_END(name) name
+#elif defined(_MSC_VER)
+// MSVC does not support fixed underlying enum types in C mode. Keep the
+// constants in an anonymous enum and use an explicitly sized typedef.
+#define ENUM_U8_BEGIN(name) typedef uint8_t name; enum
+#define ENUM_U8_END(name)
+#elif defined(__GNUC__) || defined(__clang__)
+#define ENUM_U8_BEGIN(name) typedef enum __attribute__((packed))
+#define ENUM_U8_END(name) name
+#else
+#error "Unsupported compiler"
+#endif
+
 //structures
 typedef struct
 {
@@ -246,6 +264,67 @@ typedef struct
     void* reserved;
 } PLUG_CB_STOPTRACE;
 
+ENUM_U8_BEGIN(DbItemType)
+{
+    DbItemTypeBookmark,
+    DbItemTypeLabel,
+    DbItemTypeComment,
+    DbItemTypeFunction,
+    DbItemTypeLoop,
+    DbItemTypeArgument,
+}
+ENUM_U8_END(DbItemType);
+
+ENUM_U8_BEGIN(DbOperationType)
+{
+    DbOperationTypeAdd,
+    DbOperationTypeRemove,
+}
+ENUM_U8_END(DbOperationType);
+
+#undef ENUM_U8_BEGIN
+#undef ENUM_U8_END
+
+typedef struct
+{
+    DbOperationType opType;
+    DbItemType itemType;
+    bool manual;
+    duint modhash; // Use DbgFunctions()->ModNameFromHash
+    duint address; // RVA if modhash != 0 else VA
+    // WARNING: DO NOT ACCESS DATA BEYOND ITEM TYPE
+    union
+    {
+        // Bookmark (no fields)
+
+        // Label, Comment
+        struct
+        {
+            const char* text;
+        };
+
+        // Function, Loop, Argument
+        struct
+        {
+            duint end;
+            duint parent;
+            uint32_t icount;
+            int32_t depth;
+        };
+    };
+} DbOperation;
+
+#ifdef __cplusplus
+static_assert(offsetof(DbOperation, modhash) == sizeof(void*), "");
+#endif // __cplusplus
+
+typedef struct
+{
+    const DbOperation** operations;
+    size_t count;
+    uint32_t batchId; // >0 if batched, 0 otherwise
+} PLUG_CB_DBOPERATION;
+
 typedef enum
 {
     ValueTypeNumber,
@@ -307,6 +386,8 @@ typedef enum
     CB_STOPPINGDEBUG, //PLUG_CB_STOPDEBUG
     CB_STARTTRACE, //PLUG_CB_STARTTRACE
     CB_STOPTRACE, //PLUG_CB_STOPTRACE
+    CB_DBOPERATION, //PLUG_CB_DBOPERATION
+    CB_DBLOADOPERATION, //PLUG_CB_DBOPERATION
     CB_LAST
 } CBTYPE;
 

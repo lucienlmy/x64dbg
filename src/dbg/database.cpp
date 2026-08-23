@@ -336,18 +336,18 @@ void DbClose()
 void DbClear(bool terminating)
 {
     AddressColorClear();
-    CommentClear();
-    LabelClear();
-    BookmarkClear();
-    FunctionClear();
-    ArgumentClear();
-    LoopClear();
-    XrefClear();
-    EncodeMapClear();
+    CommentClear(terminating);
+    LabelClear(terminating);
+    BookmarkClear(terminating);
+    FunctionClear(terminating);
+    ArgumentClear(terminating);
+    LoopClear(terminating);
+    XrefClear(terminating);
+    EncodeMapClear(terminating);
     TraceRecord.clear();
-    BpClear();
-    ModCacheClear();
-    WatchClear();
+    BpClear(terminating);
+    ModCacheClear(terminating);
+    WatchClear(terminating);
     GuiSetDebuggeeNotes("");
 
     if(terminating)

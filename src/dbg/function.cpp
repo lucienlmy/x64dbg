@@ -2,6 +2,7 @@
 #include "module.h"
 #include "memory.h"
 #include "threading.h"
+#include "database_cb_batcher.h"
 
 struct FunctionSerializer : JSONWrapper<FUNCTIONSINFO>
 {
@@ -53,6 +54,18 @@ protected:
     ModuleRange makeKey(const FUNCTIONSINFO & value) const override
     {
         return ModuleRange(value.modhash, Range(value.start, value.end));
+    }
+
+    bool populateDbOperation(DbOperation & op, const FUNCTIONSINFO & value) const override
+    {
+        op.itemType = DbItemTypeFunction;
+        op.manual = value.manual;
+        op.modhash = value.modhash;
+        op.address = value.start;
+        op.end = value.end;
+        op.parent = value.parent;
+        op.icount = value.instructioncount;
+        return true;
     }
 };
 
@@ -122,7 +135,7 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
     // 0x00000000 - 0xFFFFFFFF
     if(Start == 0 && End == ~0)
     {
-        FunctionClear();
+        FunctionClear(false);
     }
     else
     {
@@ -135,6 +148,8 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
         // Convert these to a relative offset
         Start -= moduleBase;
         End -= moduleBase;
+
+        DbCallbackBatcher batcher;
 
         functions.DeleteWhere([ = ](const FUNCTIONSINFO & value)
         {
@@ -152,6 +167,7 @@ void FunctionCacheSave(JSON Root)
 
 void FunctionCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher(true);
     functions.CacheLoad(Root);
     functions.CacheLoad(Root, "auto"); //legacy support
 }
@@ -161,9 +177,10 @@ bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size)
     return functions.Enum(List, Size);
 }
 
-void FunctionClear()
+void FunctionClear(bool Terminating)
 {
-    functions.Clear();
+    DbCallbackBatcher batcher;
+    functions.Clear(Terminating);
 }
 
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list)
