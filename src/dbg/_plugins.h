@@ -272,6 +272,7 @@ ENUM_U8_BEGIN(DbItemType)
     DbItemTypeFunction,
     DbItemTypeLoop,
     DbItemTypeArgument,
+    DbItemTypeAddressColor,
 }
 ENUM_U8_END(DbItemType);
 
@@ -287,30 +288,62 @@ ENUM_U8_END(DbOperationType);
 
 typedef struct
 {
+    uint8_t reserved;
+} DbItemBookmark;
+
+typedef struct
+{
+    const char* text;
+} DbItemLabel;
+
+typedef struct
+{
+    const char* text;
+} DbItemComment;
+
+typedef struct
+{
+    duint end;
+    duint parent;
+    uint32_t icount;
+} DbItemFunction;
+
+typedef struct
+{
+    duint end;
+    duint parent;
+    uint32_t icount;
+    int32_t depth;
+} DbItemLoop;
+
+typedef struct
+{
+    duint end;
+    uint32_t icount;
+} DbItemArgument;
+
+typedef struct
+{
+    duint end;
+    duint color;
+} DbItemAddressColor;
+
+typedef struct
+{
     DbOperationType opType;
     DbItemType itemType;
     bool manual;
     duint modhash; // Use DbgFunctions()->ModNameFromHash
     duint address; // RVA if modhash != 0 else VA
-    // WARNING: DO NOT ACCESS DATA BEYOND ITEM TYPE
     union
     {
-        // Bookmark (no fields)
-
-        // Label, Comment
-        struct
-        {
-            const char* text;
-        };
-
-        // Function, Loop, Argument
-        struct
-        {
-            duint end;
-            duint parent;
-            uint32_t icount;
-            int32_t depth;
-        };
+        DbItemBookmark bookmark;
+        DbItemLabel label;
+        DbItemComment comment;
+        DbItemFunction function;
+        DbItemLoop loop;
+        DbItemArgument argument;
+        DbItemAddressColor addressColor;
     };
 } DbOperation;
 

@@ -23,6 +23,7 @@ The debugger supports both singular and batch-style database mutations for items
 * functions
 * loops
 * arguments
+* address colors
 
 These tests ensure callback consumers can reliably distinguish:
 
@@ -80,6 +81,26 @@ Validates that singular label operations emit exactly one non-bulk callback.
 ### `label-batch`
 
 Validates that batch label operations emit bulk callbacks.
+
+---
+
+## Address Color Tests
+
+### `addresscolor-single`
+
+Validates that setting and deleting one address color emit non-bulk callbacks with the configured color preset.
+
+### `addresscolor-batch`
+
+Validates that setting a range emits one callback containing its inclusive start/end bounds, and clearing address colors emits a range removal.
+
+### `addresscolor-split`
+
+Validates that overwriting or deleting part of a color range preserves the unaffected interval fragments and emits callbacks for the normalized storage changes.
+
+### `addresscolor-load`
+
+Validates that loading a saved address-color range emits `CB_DBLOADOPERATION` with its inclusive bounds and configured color preset.
 
 ---
 

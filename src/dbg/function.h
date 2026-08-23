@@ -3,19 +3,10 @@
 
 #include "addrinfo.h"
 
-struct FUNCTIONSINFO
+struct FUNCTIONSINFO : RangeInfo
 {
-    duint modhash;
-    duint start;
-    duint end;
-    bool manual;
     duint instructioncount;
     duint parent;
-
-    std::string mod() const
-    {
-        return ModNameFromHash(modhash);
-    }
 };
 
 bool FunctionAdd(duint Start, duint End, bool Manual, duint InstructionCount = 0, duint Parent = 0);

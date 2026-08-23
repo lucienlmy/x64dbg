@@ -15,10 +15,10 @@ static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
     op.manual = info.manual;
     op.modhash = info.modhash;
     op.address = info.start;
-    op.end = info.end;
-    op.parent = info.parent;
-    op.icount = info.instructioncount;
-    op.depth = info.depth;
+    op.loop.end = info.end;
+    op.loop.parent = info.parent;
+    op.loop.icount = info.instructioncount;
+    op.loop.depth = info.depth;
 }
 
 static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info, bool loading = false)

@@ -69,24 +69,18 @@ namespace
         text += ", dbload=";
         text += dbLoad ? "true" : "false";
 
-        auto printRange = [&](const char* type)
+        auto printRange = [&](const char* type, duint end)
         {
             text += type;
-
             text += ", end=0x";
-            sprintf_s(temp, "%zx", op.end);
+            sprintf_s(temp, "%zx", end);
             text += temp;
+        };
 
-            text += ", parent=0x";
-            sprintf_s(temp, "%zx", op.parent);
-            text += temp;
-
+        auto printIcount = [&](uint32_t icount)
+        {
             text += ", icount=";
-            sprintf_s(temp, "%u", op.icount);
-            text += temp;
-
-            text += ", depth=";
-            sprintf_s(temp, "%d", op.depth);
+            sprintf_s(temp, "%u", icount);
             text += temp;
         };
 
@@ -98,20 +92,38 @@ namespace
             break;
         case DbItemTypeLabel:
             text += "label, text=";
-            text += op.text ? op.text : "<nullptr>";
+            text += op.label.text ? op.label.text : "<nullptr>";
             break;
         case DbItemTypeComment:
             text += "comment, text=";
-            text += op.text ? op.text : "<nullptr>";
+            text += op.comment.text ? op.comment.text : "<nullptr>";
             break;
         case DbItemTypeFunction:
-            printRange("function");
+            printRange("function", op.function.end);
+            text += ", parent=0x";
+            sprintf_s(temp, "%zx", op.function.parent);
+            text += temp;
+            printIcount(op.function.icount);
             break;
         case DbItemTypeLoop:
-            printRange("loop");
+            printRange("loop", op.loop.end);
+            text += ", parent=0x";
+            sprintf_s(temp, "%zx", op.loop.parent);
+            text += temp;
+            printIcount(op.loop.icount);
+            text += ", depth=";
+            sprintf_s(temp, "%d", op.loop.depth);
+            text += temp;
             break;
         case DbItemTypeArgument:
-            printRange("argument");
+            printRange("argument", op.argument.end);
+            printIcount(op.argument.icount);
+            break;
+        case DbItemTypeAddressColor:
+            printRange("addresscolor", op.addressColor.end);
+            text += ", color=";
+            sprintf_s(temp, "%zu", op.addressColor.color);
+            text += temp;
             break;
         }
 
@@ -155,7 +167,7 @@ namespace
                     expectedAddress -= DbgFunctions()->ModBaseFromAddr(expectedAddress);
                 if(cbType == CB_DBOPERATION && operation.opType == DbOperationTypeAdd &&
                         operation.itemType == DbItemTypeComment && operation.address == expectedAddress &&
-                        operation.text != nullptr && gDbLoadCommentText == operation.text)
+                        operation.comment.text != nullptr && gDbLoadCommentText == operation.comment.text)
                     gDbLoadCommentSetSeen = true;
 
                 if(gOpLogEnabled)
@@ -163,10 +175,10 @@ namespace
 
                 std::string saved;
 
-                if(operation.text && (operation.itemType == DbItemTypeComment || operation.itemType == DbItemTypeLabel))
-                {
-                    saved = std::string(operation.text);
-                }
+                if(operation.itemType == DbItemTypeComment && operation.comment.text)
+                    saved = operation.comment.text;
+                else if(operation.itemType == DbItemTypeLabel && operation.label.text)
+                    saved = operation.label.text;
 
                 bool is_bulk = info->count > 1;
                 operations.push_back({operation, saved, is_bulk});
@@ -213,6 +225,8 @@ namespace
             type = DbItemTypeLoop;
         else if(s == 'g')
             type = DbItemTypeArgument;
+        else if(s == 'o')
+            type = DbItemTypeAddressColor;
         else
             return false;
 
@@ -261,17 +275,42 @@ namespace
                 return false;
         }
 
-        if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop) && argc >= 7)
+        if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop || itemType == DbItemTypeAddressColor) && argc >= 7)
         {
-            const duint end = evalExpr(argv[6]);
-            if(!_plugin_testassert(last.operation.end == end, "end passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.end, (unsigned long long)end))
+            const duint expectedEnd = evalExpr(argv[6]);
+            duint actualEnd = 0;
+            switch(itemType)
+            {
+            case DbItemTypeFunction:
+                actualEnd = last.operation.function.end;
+                break;
+            case DbItemTypeArgument:
+                actualEnd = last.operation.argument.end;
+                break;
+            case DbItemTypeLoop:
+                actualEnd = last.operation.loop.end;
+                break;
+            case DbItemTypeAddressColor:
+                actualEnd = last.operation.addressColor.end;
+                break;
+            default:
+                break;
+            }
+            if(!_plugin_testassert(actualEnd == expectedEnd, "end passed to callback doesn't match (%llu != %llu)", (unsigned long long)actualEnd, (unsigned long long)expectedEnd))
                 return false;
         }
 
         if(itemType == DbItemTypeLoop && argc >= 8)
         {
             const int depth = (int) evalExpr(argv[7]);
-            if(!_plugin_testassert(last.operation.depth == depth, "depth passed to callback doesn't match (%d != %d)", last.operation.depth, depth))
+            if(!_plugin_testassert(last.operation.loop.depth == depth, "depth passed to callback doesn't match (%d != %d)", last.operation.loop.depth, depth))
+                return false;
+        }
+
+        if(itemType == DbItemTypeAddressColor && argc >= 8)
+        {
+            const duint color = evalExpr(argv[7]);
+            if(!_plugin_testassert(last.operation.addressColor.color == color, "color passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.addressColor.color, (unsigned long long)color))
                 return false;
         }
 
@@ -293,6 +332,28 @@ namespace
             return false;
 
         return true;
+    }
+
+    bool cbAssertAddressColor(int argc, char** argv)
+    {
+        if(argc != 3)
+            return false;
+
+        const duint address = evalExpr(argv[1]);
+        const unsigned int expected = (unsigned int)evalExpr(argv[2]);
+        unsigned int actual = 0;
+        return _plugin_testassert(DbgGetAddressColorAt(address, &actual), "no address color at %p", (void*)address) &&
+               _plugin_testassert(actual == expected, "address color doesn't match (%u != %u)", actual, expected);
+    }
+
+    bool cbAssertNoAddressColor(int argc, char** argv)
+    {
+        if(argc != 2)
+            return false;
+
+        const duint address = evalExpr(argv[1]);
+        unsigned int color = 0;
+        return _plugin_testassert(!DbgGetAddressColorAt(address, &color), "unexpected address color %u at %p", color, (void*)address);
     }
 
     bool cbOpLog(int argc, char** argv)
@@ -351,6 +412,8 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     _plugin_registercommand(gPluginHandle, "assertdbloadcommentset", cbAssertDbLoadCommentSet, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
+    _plugin_registercommand(gPluginHandle, "assertaddresscolor", cbAssertAddressColor, false);
+    _plugin_registercommand(gPluginHandle, "assertnoaddresscolor", cbAssertNoAddressColor, false);
     return true;
 }
 
