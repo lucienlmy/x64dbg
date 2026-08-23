@@ -289,24 +289,24 @@ ENUM_U8_END(DbOperationType);
 typedef struct
 {
     uint8_t reserved;
-} DbBookmarkOperation;
+} DbItemBookmark;
 
 typedef struct
 {
     const char* text;
-} DbLabelOperation;
+} DbItemLabel;
 
 typedef struct
 {
     const char* text;
-} DbCommentOperation;
+} DbItemComment;
 
 typedef struct
 {
     duint end;
     duint parent;
     uint32_t icount;
-} DbFunctionOperation;
+} DbItemFunction;
 
 typedef struct
 {
@@ -314,19 +314,19 @@ typedef struct
     duint parent;
     uint32_t icount;
     int32_t depth;
-} DbLoopOperation;
+} DbItemLoop;
 
 typedef struct
 {
     duint end;
     uint32_t icount;
-} DbArgumentOperation;
+} DbItemArgument;
 
 typedef struct
 {
     duint end;
     duint color;
-} DbAddressColorOperation;
+} DbItemAddressColor;
 
 typedef struct
 {
@@ -337,13 +337,13 @@ typedef struct
     duint address; // RVA if modhash != 0 else VA
     union
     {
-        DbBookmarkOperation bookmark;
-        DbLabelOperation label;
-        DbCommentOperation comment;
-        DbFunctionOperation function;
-        DbLoopOperation loop;
-        DbArgumentOperation argument;
-        DbAddressColorOperation addressColor;
+        DbItemBookmark bookmark;
+        DbItemLabel label;
+        DbItemComment comment;
+        DbItemFunction function;
+        DbItemLoop loop;
+        DbItemArgument argument;
+        DbItemAddressColor addressColor;
     };
 } DbOperation;
 
