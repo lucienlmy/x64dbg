@@ -29,13 +29,19 @@
 #define PLUG_DB_LOADSAVE_ALL 2
 
 #if defined(__cplusplus)
-#define ENUM_U8 enum : uint8_t
+#define ENUM_U8_BEGIN(name) typedef enum : uint8_t
+#define ENUM_U8_END(name) name
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-#define ENUM_U8 enum : uint8_t
+#define ENUM_U8_BEGIN(name) typedef enum : uint8_t
+#define ENUM_U8_END(name) name
 #elif defined(_MSC_VER)
-#define ENUM_U8 enum : uint8_t
+// MSVC does not support fixed underlying enum types in C mode. Keep the
+// constants in an anonymous enum and use an explicitly sized typedef.
+#define ENUM_U8_BEGIN(name) typedef uint8_t name; enum
+#define ENUM_U8_END(name)
 #elif defined(__GNUC__) || defined(__clang__)
-#define ENUM_U8 enum __attribute__((packed))
+#define ENUM_U8_BEGIN(name) typedef enum __attribute__((packed))
+#define ENUM_U8_END(name) name
 #else
 #error "Unsupported compiler"
 #endif
@@ -258,7 +264,7 @@ typedef struct
     void* reserved;
 } PLUG_CB_STOPTRACE;
 
-typedef ENUM_U8
+ENUM_U8_BEGIN(DbItemType)
 {
     DbItemTypeBookmark,
     DbItemTypeLabel,
@@ -266,13 +272,18 @@ typedef ENUM_U8
     DbItemTypeFunction,
     DbItemTypeLoop,
     DbItemTypeArgument,
-} DbItemType;
+}
+ENUM_U8_END(DbItemType);
 
-typedef ENUM_U8
+ENUM_U8_BEGIN(DbOperationType)
 {
     DbOperationTypeAdd,
     DbOperationTypeRemove,
-} DbOperationType;
+}
+ENUM_U8_END(DbOperationType);
+
+#undef ENUM_U8_BEGIN
+#undef ENUM_U8_END
 
 typedef struct
 {

@@ -582,5 +582,6 @@ void dbgfunctionsinit()
         if(name.empty())
             return false;
         strncpy_s(modname, MAX_MODULE_SIZE, name.c_str(), _TRUNCATE);
+        return true;
     };
 }
