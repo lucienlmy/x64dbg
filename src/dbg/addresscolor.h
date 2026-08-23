@@ -10,13 +10,14 @@ struct ADDRESSCOLORINFO : AddrInfo
 };
 
 bool AddressColorSet(duint Address, duint color, bool Manual);
+bool AddressColorSetRange(duint Start, duint End, duint color, bool Manual);
 bool AddressColorGet(duint Address, duint* color);
 bool AddressColorDelete(duint Address);
 void AddressColorDelRange(duint Start, duint End, bool Manual);
 void AddressColorCacheSave(JSON Root);
 void AddressColorCacheLoad(JSON Root);
 bool AddressColorEnum(ADDRESSCOLORINFO* List, size_t* Size);
-void AddressColorClear();
+void AddressColorClear(bool Terminating);
 void AddressColorGetList(std::vector<ADDRESSCOLORINFO> & list);
 bool AddressColorGetInfo(duint Address, ADDRESSCOLORINFO* info);
 

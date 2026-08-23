@@ -272,6 +272,7 @@ ENUM_U8_BEGIN(DbItemType)
     DbItemTypeFunction,
     DbItemTypeLoop,
     DbItemTypeArgument,
+    DbItemTypeAddressColor,
 }
 ENUM_U8_END(DbItemType);
 
@@ -296,6 +297,12 @@ typedef struct
     union
     {
         // Bookmark (no fields)
+
+        // Address Color
+        struct
+        {
+            duint color;
+        };
 
         // Label, Comment
         struct

@@ -1,4 +1,5 @@
 #include "addresscolor.h"
+#include "database_cb_batcher.h"
 
 struct AddressColorSerializer : AddrInfoSerializer<ADDRESSCOLORINFO>
 {
@@ -22,6 +23,17 @@ struct AddressColors : AddrInfoHashMap<LockAddressColors, ADDRESSCOLORINFO, Addr
     {
         return "addresscolors";
     }
+
+protected:
+    bool populateDbOperation(DbOperation & op, const ADDRESSCOLORINFO & value) const override
+    {
+        op.itemType = DbItemTypeAddressColor;
+        op.manual = value.manual;
+        op.modhash = value.modhash;
+        op.address = value.addr;
+        op.color = value.color;
+        return true;
+    }
 };
 
 static AddressColors addressColors;
@@ -33,6 +45,22 @@ bool AddressColorSet(duint Address, duint color, bool Manual)
         return false;
     info.color = color;
     return addressColors.Add(info);
+}
+
+bool AddressColorSetRange(duint Start, duint End, duint color, bool Manual)
+{
+    if(Start > End)
+        return false;
+
+    DbCallbackBatcher batcher;
+    bool result = false;
+    for(duint address = Start; ; address++)
+    {
+        result = AddressColorSet(address, color, Manual) || result;
+        if(address == End)
+            break;
+    }
+    return result;
 }
 
 bool AddressColorGet(duint Address, duint* color)
@@ -52,6 +80,7 @@ bool AddressColorDelete(duint Address)
 
 void AddressColorDelRange(duint Start, duint End, bool Manual)
 {
+    DbCallbackBatcher batcher;
     addressColors.DeleteRangeWhere(Start, End, [Manual](duint start, duint end, const ADDRESSCOLORINFO & value)
     {
         if(Manual ? !value.manual : value.manual)
@@ -67,6 +96,7 @@ void AddressColorCacheSave(JSON Root)
 
 void AddressColorCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher(true);
     addressColors.CacheLoad(Root);
 }
 
@@ -75,9 +105,10 @@ bool AddressColorEnum(ADDRESSCOLORINFO* List, size_t* Size)
     return addressColors.Enum(List, Size);
 }
 
-void AddressColorClear()
+void AddressColorClear(bool Terminating)
 {
-    addressColors.Clear();
+    DbCallbackBatcher batcher;
+    addressColors.Clear(Terminating);
 }
 
 void AddressColorGetList(std::vector<ADDRESSCOLORINFO> & list)

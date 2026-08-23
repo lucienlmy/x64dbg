@@ -335,7 +335,7 @@ void DbClose()
 
 void DbClear(bool terminating)
 {
-    AddressColorClear();
+    AddressColorClear(terminating);
     CommentClear(terminating);
     LabelClear(terminating);
     BookmarkClear(terminating);

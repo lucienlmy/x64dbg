@@ -113,6 +113,11 @@ namespace
         case DbItemTypeArgument:
             printRange("argument");
             break;
+        case DbItemTypeAddressColor:
+            text += "addresscolor, color=";
+            sprintf_s(temp, "%zu", op.color);
+            text += temp;
+            break;
         }
 
         _plugin_logputs(text.c_str());
@@ -213,6 +218,8 @@ namespace
             type = DbItemTypeLoop;
         else if(s == 'g')
             type = DbItemTypeArgument;
+        else if(s == 'o')
+            type = DbItemTypeAddressColor;
         else
             return false;
 
@@ -272,6 +279,13 @@ namespace
         {
             const int depth = (int) evalExpr(argv[7]);
             if(!_plugin_testassert(last.operation.depth == depth, "depth passed to callback doesn't match (%d != %d)", last.operation.depth, depth))
+                return false;
+        }
+
+        if(itemType == DbItemTypeAddressColor && argc >= 7)
+        {
+            const duint color = evalExpr(argv[6]);
+            if(!_plugin_testassert(last.operation.color == color, "color passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.color, (unsigned long long)color))
                 return false;
         }
 

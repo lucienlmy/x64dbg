@@ -41,10 +41,7 @@ bool cbDebugAddressColorSet(int argc, char* argv[])
     }
     if(preset == 0)
         return false;
-    bool ok = false;
-    for(duint addr = start; addr <= end; addr++)
-        ok = AddressColorSet(addr, preset, true) || ok;
-    if(!ok)
+    if(!AddressColorSetRange(start, end, preset, true))
         return false;
     GuiUpdateDisassemblyView();
     return true;
@@ -60,8 +57,8 @@ bool cbDebugAddressColorSetRange(int argc, char* argv[])
     if(preset == 0)
         return false;
 
-    for(duint addr = start; addr <= end; addr++)
-        AddressColorSet(addr, preset, true);
+    if(!AddressColorSetRange(start, end, preset, true))
+        return false;
     GuiUpdateDisassemblyView();
     return true;
 }
@@ -93,7 +90,7 @@ bool cbDebugAddressColorDelete(int argc, char* argv[])
 
 bool cbDebugAddressColorClear(int argc, char* argv[])
 {
-    AddressColorClear();
+    AddressColorClear(false);
     GuiUpdateDisassemblyView();
     return true;
 }
