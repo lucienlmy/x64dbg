@@ -10,11 +10,15 @@ public:
     DbCallbackOperation();
     ~DbCallbackOperation();
 
+    void DrainAndRelock();
+
     DbCallbackOperation(const DbCallbackOperation &) = delete;
     DbCallbackOperation & operator=(const DbCallbackOperation &) = delete;
 
 private:
     std::unique_lock<std::recursive_mutex> mLock;
+    DbCallbackOperation* mPreviousOwner = nullptr;
+    bool mOwner = false;
 };
 
 class DbCallbackBatcher

@@ -71,6 +71,11 @@ Validates that batch comment operations emit bulk callbacks.
 Validates that a comment added reentrantly from a batch callback is delivered only
 after every plugin has received the older batch.
 
+### `comment-reentrant-threaded`
+
+Validates that callback delivery does not hold the writer lock while a callback waits
+for a worker thread that performs a database mutation.
+
 ### `comment-threaded`
 
 Validates that callbacks from concurrent comment writers preserve database commit
