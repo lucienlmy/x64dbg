@@ -211,17 +211,18 @@ protected:
         auto action = new QWidgetAction(getBase());
         action->setDefaultWidget(container);
 
-        QObject::connect(swatch, &QPushButton::clicked, action, [action, container]()
+        QObject::connect(swatch, &QPushButton::clicked, action, [action]()
         {
-            action->trigger();
-            for(QWidget* p = container->parentWidget(); p; p = p->parentWidget())
+            QWidget* popup = QApplication::activePopupWidget();
+            while(auto menu = qobject_cast<QMenu*>(popup))
             {
-                if(auto menu = qobject_cast<QMenu*>(p))
-                {
-                    menu->close();
+                menu->close();
+                auto next = QApplication::activePopupWidget();
+                if(next == popup)
                     break;
-                }
+                popup = next;
             }
+            action->trigger();
         });
 
         return connectAction(action, slot);
