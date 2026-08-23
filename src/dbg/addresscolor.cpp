@@ -12,12 +12,12 @@ struct AddressColorSerializer : RangeInfoSerializer<ADDRESSCOLORINFO>
 
     bool Load(ADDRESSCOLORINFO & value) override
     {
-        return RangeInfoSerializer::Load(value) &&
+        return loadRangeInfo(value, true) &&
                getHex("color", value.color);
     }
 };
 
-struct AddressColors : RangeInfoMap<LockAddressColors, ADDRESSCOLORINFO, AddressColorSerializer>
+struct AddressColors : SplitRangeInfoMap<LockAddressColors, ADDRESSCOLORINFO, AddressColorSerializer>
 {
     const char* jsonKey() const override
     {
@@ -42,7 +42,7 @@ static AddressColors addressColors;
 static bool setRange(duint Start, duint End, duint color, bool Manual)
 {
     ADDRESSCOLORINFO info;
-    if(!addressColors.PrepareValue(info, Start, End, Manual))
+    if(!MemIsValidReadPtr(End) || !addressColors.PrepareValue(info, Start, End, Manual))
         return false;
     info.color = color;
     return addressColors.ReplaceRange(info);

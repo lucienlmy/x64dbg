@@ -3,18 +3,9 @@
 
 #include "addrinfo.h"
 
-struct ARGUMENTSINFO
+struct ARGUMENTSINFO : RangeInfo
 {
-    duint modhash;
-    duint start;
-    duint end;
-    bool manual;
     duint instructioncount;
-
-    std::string mod() const
-    {
-        return ModNameFromHash(modhash);
-    }
 };
 
 bool ArgumentAdd(duint Start, duint End, bool Manual, duint InstructionCount = 0);

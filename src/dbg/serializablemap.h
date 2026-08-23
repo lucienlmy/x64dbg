@@ -567,6 +567,12 @@ struct RangeInfoSerializer : JSONWrapper<TValue>
 
     bool Load(TValue & value) override
     {
+        return loadRangeInfo(value, false);
+    }
+
+protected:
+    bool loadRangeInfo(TValue & value, bool allowLegacyAddress)
+    {
         value.manual = true; // legacy support
         this->getBool("manual", value.manual);
         std::string mod;
@@ -576,8 +582,7 @@ struct RangeInfoSerializer : JSONWrapper<TValue>
 
         if(!this->getHex("start", value.start))
         {
-            // Legacy point-based entries are one-address ranges.
-            if(!this->getHex("address", value.start))
+            if(!allowLegacyAddress || !this->getHex("address", value.start))
                 return false;
             value.end = value.start;
         }
@@ -604,7 +609,7 @@ struct RangeInfoMap : SerializableModuleRangeMap<TLock, TValue, TSerializer>
 
     bool PrepareValue(TValue & value, duint start, duint end, bool manual)
     {
-        if(start > end || !MemIsValidReadPtr(start) || !MemIsValidReadPtr(end))
+        if(start > end || !MemIsValidReadPtr(start))
             return false;
         auto base = ModBaseFromAddr(start);
         if(base != ModBaseFromAddr(end))
@@ -616,6 +621,16 @@ struct RangeInfoMap : SerializableModuleRangeMap<TLock, TValue, TSerializer>
         return true;
     }
 
+protected:
+    ModuleRange makeKey(const TValue & value) const override
+    {
+        return ModuleRange(value.modhash, Range(value.start, value.end));
+    }
+};
+
+template<SectionLock TLock, class TValue, class TSerializer>
+struct SplitRangeInfoMap : RangeInfoMap<TLock, TValue, TSerializer>
+{
     // Replace an inclusive interval, preserving the non-overlapping fragments
     // on either side of every interval it intersects.
     bool ReplaceRange(const TValue & replacement, bool loading = false)
@@ -708,12 +723,6 @@ struct RangeInfoMap : SerializableModuleRangeMap<TLock, TValue, TSerializer>
                 values.emplace(ModuleRange(value.modhash, Range(value.start, value.end)), value);
             return !removed.empty();
         }, loading);
-    }
-
-protected:
-    ModuleRange makeKey(const TValue & value) const override
-    {
-        return ModuleRange(value.modhash, Range(value.start, value.end));
     }
 };
 
