@@ -177,6 +177,11 @@ bool DbgSetAddressColorAt(duint addr, unsigned int preset)
     return false;
 }
 
+bool DbgSetAddressColorRange(duint start, duint end, unsigned int preset)
+{
+    return false;
+}
+
 void DbgDelAddressColorRange(duint start, duint end)
 {
 }

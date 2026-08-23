@@ -4,7 +4,7 @@
 #include "_global.h"
 #include "addrinfo.h"
 
-struct ADDRESSCOLORINFO : AddrInfo
+struct ADDRESSCOLORINFO : RangeInfo
 {
     duint color;
 };

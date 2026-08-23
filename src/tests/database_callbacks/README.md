@@ -92,11 +92,15 @@ Validates that setting and deleting one address color emit non-bulk callbacks wi
 
 ### `addresscolor-batch`
 
-Validates that setting a range emits a bulk callback and clearing address colors emits remove callbacks.
+Validates that setting a range emits one callback containing its inclusive start/end bounds, and clearing address colors emits a range removal.
+
+### `addresscolor-split`
+
+Validates that overwriting or deleting part of a color range preserves the unaffected interval fragments and emits callbacks for the normalized storage changes.
 
 ### `addresscolor-load`
 
-Validates that loading a saved address color emits `CB_DBLOADOPERATION` with the configured color preset.
+Validates that loading a saved address-color range emits `CB_DBLOADOPERATION` with its inclusive bounds and configured color preset.
 
 ---
 

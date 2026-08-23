@@ -135,6 +135,7 @@ bool DbgGetModuleAt(duint addr, char* module);
 bool DbgGetCommentAt(duint addr, char* comment);
 bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
 bool DbgSetAddressColorAt(duint addr, unsigned int preset);
+bool DbgSetAddressColorRange(duint start, duint end, unsigned int preset);
 bool DbgGetBookmarkAt(duint addr);
 BPXTYPE DbgGetBpxTypeAt(duint addr);
 bool DbgMemIsValidReadPtr(duint addr);

@@ -1379,6 +1379,13 @@ extern "C" DLL_EXPORT duint _dbg_sendmessage(DBGMSG type, void* param1, void* pa
     }
     break;
 
+    case DBG_SET_ADDRESSCOLOR_RANGE:
+    {
+        const auto info = (const ADDRESSCOLOR_RANGE*)param1;
+        return info && AddressColorSetRange(info->start, info->end, info->color, true);
+    }
+    break;
+
     case DBG_SET_AUTO_FUNCTION_AT:
     {
         return (duint)FunctionAdd((duint)param1, (duint)param2, false);

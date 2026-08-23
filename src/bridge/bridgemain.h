@@ -368,6 +368,7 @@ typedef enum
     DBG_UPDATE_GUI,                 // param1=disasm_addr,               param2=bool stack
     DBG_IS_TESTING,                 // param1=unused,                    param2=unused
     DBG_DELETE_ADDRESSCOLOR_RANGE,  // param1=duint start,               param2=duint end
+    DBG_SET_ADDRESSCOLOR_RANGE,     // param1=ADDRESSCOLOR_RANGE* info,  param2=unused
 } DBGMSG;
 
 typedef enum
@@ -1246,8 +1247,16 @@ BRIDGE_IMPEXP DEBUG_ENGINE DbgGetDebugEngine();
 BRIDGE_IMPEXP bool DbgGetSymbolInfoAt(duint addr, SYMBOLINFO* info);
 BRIDGE_IMPEXP duint DbgXrefAddMulti(const XREF_EDGE* edges, duint count);
 BRIDGE_IMPEXP void DbgUpdateGui(duint disasm_addr, bool stack);
+typedef struct
+{
+    duint start;
+    duint end;
+    unsigned int color;
+} ADDRESSCOLOR_RANGE;
+
 BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
 BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int preset);
+BRIDGE_IMPEXP bool DbgSetAddressColorRange(duint start, duint end, unsigned int preset);
 BRIDGE_IMPEXP void DbgDelAddressColorRange(duint start, duint end);
 
 typedef enum

@@ -298,12 +298,6 @@ typedef struct
     {
         // Bookmark (no fields)
 
-        // Address Color
-        struct
-        {
-            duint color;
-        };
-
         // Label, Comment
         struct
         {
@@ -311,10 +305,15 @@ typedef struct
         };
 
         // Function, Loop, Argument
+        // Address Color uses end and color.
         struct
         {
             duint end;
-            duint parent;
+            union
+            {
+                duint parent;
+                duint color;
+            };
             uint32_t icount;
             int32_t depth;
         };

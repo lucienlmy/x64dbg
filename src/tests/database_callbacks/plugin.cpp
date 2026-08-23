@@ -114,7 +114,10 @@ namespace
             printRange("argument");
             break;
         case DbItemTypeAddressColor:
-            text += "addresscolor, color=";
+            text += "addresscolor, end=0x";
+            sprintf_s(temp, "%zx", op.end);
+            text += temp;
+            text += ", color=";
             sprintf_s(temp, "%zu", op.color);
             text += temp;
             break;
@@ -268,7 +271,7 @@ namespace
                 return false;
         }
 
-        if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop) && argc >= 7)
+        if((itemType == DbItemTypeFunction || itemType == DbItemTypeArgument || itemType == DbItemTypeLoop || itemType == DbItemTypeAddressColor) && argc >= 7)
         {
             const duint end = evalExpr(argv[6]);
             if(!_plugin_testassert(last.operation.end == end, "end passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.end, (unsigned long long)end))
@@ -282,9 +285,9 @@ namespace
                 return false;
         }
 
-        if(itemType == DbItemTypeAddressColor && argc >= 7)
+        if(itemType == DbItemTypeAddressColor && argc >= 8)
         {
-            const duint color = evalExpr(argv[6]);
+            const duint color = evalExpr(argv[7]);
             if(!_plugin_testassert(last.operation.color == color, "color passed to callback doesn't match (%llu != %llu)", (unsigned long long)last.operation.color, (unsigned long long)color))
                 return false;
         }
@@ -307,6 +310,28 @@ namespace
             return false;
 
         return true;
+    }
+
+    bool cbAssertAddressColor(int argc, char** argv)
+    {
+        if(argc != 3)
+            return false;
+
+        const duint address = evalExpr(argv[1]);
+        const unsigned int expected = (unsigned int)evalExpr(argv[2]);
+        unsigned int actual = 0;
+        return _plugin_testassert(DbgGetAddressColorAt(address, &actual), "no address color at %p", (void*)address) &&
+               _plugin_testassert(actual == expected, "address color doesn't match (%u != %u)", actual, expected);
+    }
+
+    bool cbAssertNoAddressColor(int argc, char** argv)
+    {
+        if(argc != 2)
+            return false;
+
+        const duint address = evalExpr(argv[1]);
+        unsigned int color = 0;
+        return _plugin_testassert(!DbgGetAddressColorAt(address, &color), "unexpected address color %u at %p", color, (void*)address);
     }
 
     bool cbOpLog(int argc, char** argv)
@@ -365,6 +390,8 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     _plugin_registercommand(gPluginHandle, "assertdbloadcommentset", cbAssertDbLoadCommentSet, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
+    _plugin_registercommand(gPluginHandle, "assertaddresscolor", cbAssertAddressColor, false);
+    _plugin_registercommand(gPluginHandle, "assertnoaddresscolor", cbAssertNoAddressColor, false);
     return true;
 }
 

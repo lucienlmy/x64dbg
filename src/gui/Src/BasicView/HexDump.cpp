@@ -1774,8 +1774,7 @@ int HexDump::accessibilitySelectedRow() const
 
 void HexDump::setAddressColor(duint vaStart, duint vaEnd, unsigned int preset)
 {
-    for(duint va = vaStart; va <= vaEnd; va++)
-        DbgSetAddressColorAt(va, preset);
+    DbgSetAddressColorRange(vaStart, vaEnd, preset);
     updateViewport();
 }
 

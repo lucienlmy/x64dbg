@@ -1,23 +1,23 @@
 #include "addresscolor.h"
 #include "database_cb_batcher.h"
 
-struct AddressColorSerializer : AddrInfoSerializer<ADDRESSCOLORINFO>
+struct AddressColorSerializer : RangeInfoSerializer<ADDRESSCOLORINFO>
 {
     bool Save(const ADDRESSCOLORINFO & value) override
     {
-        AddrInfoSerializer::Save(value);
+        RangeInfoSerializer::Save(value);
         setHex("color", value.color);
         return true;
     }
 
     bool Load(ADDRESSCOLORINFO & value) override
     {
-        return AddrInfoSerializer::Load(value) &&
+        return RangeInfoSerializer::Load(value) &&
                getHex("color", value.color);
     }
 };
 
-struct AddressColors : AddrInfoHashMap<LockAddressColors, ADDRESSCOLORINFO, AddressColorSerializer>
+struct AddressColors : RangeInfoMap<LockAddressColors, ADDRESSCOLORINFO, AddressColorSerializer>
 {
     const char* jsonKey() const override
     {
@@ -30,7 +30,8 @@ protected:
         op.itemType = DbItemTypeAddressColor;
         op.manual = value.manual;
         op.modhash = value.modhash;
-        op.address = value.addr;
+        op.address = value.start;
+        op.end = value.end;
         op.color = value.color;
         return true;
     }
@@ -38,35 +39,32 @@ protected:
 
 static AddressColors addressColors;
 
-bool AddressColorSet(duint Address, duint color, bool Manual)
+static bool setRange(duint Start, duint End, duint color, bool Manual)
 {
     ADDRESSCOLORINFO info;
-    if(!addressColors.PrepareValue(info, Address, Manual))
+    if(!addressColors.PrepareValue(info, Start, End, Manual))
         return false;
     info.color = color;
-    return addressColors.Add(info);
+    return addressColors.ReplaceRange(info);
+}
+
+bool AddressColorSet(duint Address, duint color, bool Manual)
+{
+    return setRange(Address, Address, color, Manual);
 }
 
 bool AddressColorSetRange(duint Start, duint End, duint color, bool Manual)
 {
-    if(Start > End)
-        return false;
-
+    if(Start == End)
+        return setRange(Start, End, color, Manual);
     DbCallbackBatcher batcher;
-    bool result = false;
-    for(duint address = Start; ; address++)
-    {
-        result = AddressColorSet(address, color, Manual) || result;
-        if(address == End)
-            break;
-    }
-    return result;
+    return setRange(Start, End, color, Manual);
 }
 
 bool AddressColorGet(duint Address, duint* color)
 {
     ADDRESSCOLORINFO info;
-    if(!addressColors.Get(AddressColors::VaKey(Address), info))
+    if(!addressColors.Get(AddressColors::VaKey(Address, Address), info))
         return false;
     if(color)
         *color = info.color;
@@ -75,17 +73,18 @@ bool AddressColorGet(duint Address, duint* color)
 
 bool AddressColorDelete(duint Address)
 {
-    return addressColors.Delete(AddressColors::VaKey(Address));
+    return addressColors.DeleteRangeWhere(Address, Address, [](const ADDRESSCOLORINFO &)
+    {
+        return true;
+    });
 }
 
 void AddressColorDelRange(duint Start, duint End, bool Manual)
 {
     DbCallbackBatcher batcher;
-    addressColors.DeleteRangeWhere(Start, End, [Manual](duint start, duint end, const ADDRESSCOLORINFO & value)
+    addressColors.DeleteRangeWhere(Start, End, [Manual](const ADDRESSCOLORINFO & value)
     {
-        if(Manual ? !value.manual : value.manual)
-            return false;
-        return value.addr >= start && value.addr <= end;
+        return value.manual == Manual;
     });
 }
 
@@ -118,5 +117,5 @@ void AddressColorGetList(std::vector<ADDRESSCOLORINFO> & list)
 
 bool AddressColorGetInfo(duint Address, ADDRESSCOLORINFO* info)
 {
-    return addressColors.GetInfo(AddressColors::VaKey(Address), info);
+    return addressColors.GetInfo(AddressColors::VaKey(Address, Address), info);
 }
