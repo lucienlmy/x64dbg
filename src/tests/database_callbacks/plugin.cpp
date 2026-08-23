@@ -23,10 +23,25 @@ namespace
     int gPluginHandle = 0;
     std::vector<TestOperation> operations;
     bool gOpLogEnabled = false;
+    bool gReentrantCommentSetPending = false;
+    duint gReentrantCommentAddress = 0;
+    std::string gReentrantCommentText;
+    bool gDbLoadCommentSetPending = false;
+    bool gDbLoadCommentSetSeen = false;
+    duint gDbLoadCommentAddress = 0;
+    std::string gDbLoadCommentText;
 
-    void resetState()
+    void resetState(bool preserveDbLoadCommentSet = false)
     {
         operations.clear();
+        gReentrantCommentSetPending = false;
+        gDbLoadCommentSetSeen = false;
+        if(!preserveDbLoadCommentSet)
+        {
+            gDbLoadCommentSetPending = false;
+            gDbLoadCommentAddress = 0;
+            gDbLoadCommentText.clear();
+        }
     }
 
     void printOperation(const DbOperation & op, bool dbLoad)
@@ -107,7 +122,7 @@ namespace
     {
         if(cbType == CB_INITDEBUG)
         {
-            resetState();
+            resetState(true);
             return;
         }
 
@@ -115,9 +130,33 @@ namespace
         {
             auto info = (PLUG_CB_DBOPERATION*) callbackInfo;
 
+            if(cbType == CB_DBOPERATION && gReentrantCommentSetPending)
+            {
+                gReentrantCommentSetPending = false;
+                char command[MAX_SETTING_SIZE];
+                sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gReentrantCommentAddress, gReentrantCommentText.c_str());
+                _plugin_testassert(DbgCmdExecDirect(command), "reentrant command failed: %s", command);
+            }
+
+            if(cbType == CB_DBLOADOPERATION && gDbLoadCommentSetPending)
+            {
+                gDbLoadCommentSetPending = false;
+                char command[MAX_SETTING_SIZE];
+                sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gDbLoadCommentAddress, gDbLoadCommentText.c_str());
+                _plugin_testassert(DbgCmdExecDirect(command), "database-load reentrant command failed: %s", command);
+            }
+
             for(size_t i = 0; i < info->count; i ++)
             {
                 const DbOperation & operation = *info->operations[i];
+
+                auto expectedAddress = gDbLoadCommentAddress;
+                if(operation.modhash != 0)
+                    expectedAddress -= DbgFunctions()->ModBaseFromAddr(expectedAddress);
+                if(cbType == CB_DBOPERATION && operation.opType == DbOperationTypeAdd &&
+                        operation.itemType == DbItemTypeComment && operation.address == expectedAddress &&
+                        operation.text != nullptr && gDbLoadCommentText == operation.text)
+                    gDbLoadCommentSetSeen = true;
 
                 if(gOpLogEnabled)
                     printOperation(operation, cbType == CB_DBLOADOPERATION);
@@ -265,6 +304,35 @@ namespace
         _plugin_logprintf("oplog state: %s\n", gOpLogEnabled ? "on" : "off");
         return true;
     }
+
+    bool cbReentrantCommentSet(int argc, char** argv)
+    {
+        if(argc != 3)
+            return false;
+
+        gReentrantCommentAddress = evalExpr(argv[1]);
+        gReentrantCommentText = argv[2];
+        gReentrantCommentSetPending = true;
+        return _plugin_testassert(gReentrantCommentAddress != 0, "failed to resolve reentrant comment address '%s'", argv[1]);
+    }
+
+    bool cbDbLoadCommentSet(int argc, char** argv)
+    {
+        if(argc != 3)
+            return false;
+
+        gDbLoadCommentAddress = evalExpr(argv[1]);
+        gDbLoadCommentText = argv[2];
+        gDbLoadCommentSetPending = true;
+        gDbLoadCommentSetSeen = false;
+        return _plugin_testassert(gDbLoadCommentAddress != 0, "failed to resolve database-load comment address '%s'", argv[1]);
+    }
+
+    bool cbAssertDbLoadCommentSet(int, char**)
+    {
+        return _plugin_testassert(!gDbLoadCommentSetPending, "database-load callback was not triggered") &&
+               _plugin_testassert(gDbLoadCommentSetSeen, "regular database operation was not emitted as CB_DBOPERATION");
+    }
 }
 
 extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
@@ -278,6 +346,9 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     _plugin_registercallback(gPluginHandle, CB_INITDEBUG, cbPlugin);
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
     _plugin_registercommand(gPluginHandle, "dboplog", cbOpLog, false);
+    _plugin_registercommand(gPluginHandle, "dbreentrantcommentset", cbReentrantCommentSet, false);
+    _plugin_registercommand(gPluginHandle, "dbloadcommentset", cbDbLoadCommentSet, false);
+    _plugin_registercommand(gPluginHandle, "assertdbloadcommentset", cbAssertDbLoadCommentSet, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
     return true;

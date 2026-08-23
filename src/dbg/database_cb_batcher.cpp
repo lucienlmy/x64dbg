@@ -31,17 +31,14 @@ DbCallbackBatcher::~DbCallbackBatcher()
 
 bool DbCallbackBatcher::IsActive(bool loading)
 {
-    if(tActiveBatcher)
-    {
-        ASSERT_ALWAYS(loading == tActiveBatcher->mLoading);
+    if(tActiveBatcher && loading == tActiveBatcher->mLoading)
         return tActiveBatcher->mActive;
-    }
     return !plugincbempty(loading ? CB_DBLOADOPERATION : CB_DBOPERATION);
 }
 
 void DbCallbackBatcher::Add(DbOperation & op, bool loading)
 {
-    if(tActiveBatcher != nullptr)
+    if(tActiveBatcher != nullptr && loading == tActiveBatcher->mLoading)
     {
         tActiveBatcher->add(op, loading);
     }
@@ -60,7 +57,7 @@ void DbCallbackBatcher::Add(DbOperation & op, bool loading)
 
 void DbCallbackBatcher::add(DbOperation & op, bool loading)
 {
-    ASSERT_ALWAYS(loading == mLoading);
+    ASSERT_TRUE(loading == mLoading);
 
     // NOTE: bad, we already paid the DbOperation construction
     if(!mActive)
@@ -83,29 +80,33 @@ void DbCallbackBatcher::add(DbOperation & op, bool loading)
 
 void DbCallbackBatcher::flush()
 {
-    if(mOperations.empty())
+    if(mFlushing)
+    {
+        // The outer flush drains reentrant operations after callback delivery.
+        // In this rare case the pending batch may exceed the normal size limit.
         return;
+    }
 
-    mOpList.resize(mOperations.size());
-    for(size_t i = 0; i < mOperations.size(); i++)
-        mOpList[i] = &mOperations[i];
+    mFlushing = true;
+    while(!mOperations.empty())
+    {
+        std::vector<DbOperation> operations;
+        std::deque<std::string> strings;
+        operations.swap(mOperations);
+        strings.swap(mStrings);
 
-    PLUG_CB_DBOPERATION info;
-    info.operations = mOpList.data();
-    info.count = mOpList.size();
-    info.batchId = mBatchId;
+        std::vector<const DbOperation*> opList(operations.size());
+        for(size_t i = 0; i < operations.size(); i++)
+            opList[i] = &operations[i];
 
-    // Do not let reentrant database callbacks append to the batch being delivered.
-    auto activeBatcher = DbCallbackBatcher::tActiveBatcher;
-    if(activeBatcher == this)
-        DbCallbackBatcher::tActiveBatcher = mPrevious;
+        PLUG_CB_DBOPERATION info;
+        info.operations = opList.data();
+        info.count = opList.size();
+        info.batchId = mBatchId;
 
-    plugincbcall(mLoading ? CB_DBLOADOPERATION : CB_DBOPERATION, &info);
-
-    if(activeBatcher == this)
-        DbCallbackBatcher::tActiveBatcher = activeBatcher;
-
-    mOperations.clear();
-    mOpList.clear();
-    mStrings.clear();
+        // Reentrant operations append to the now-empty member containers and
+        // are delivered by the next iteration after this callback completes.
+        plugincbcall(mLoading ? CB_DBLOADOPERATION : CB_DBOPERATION, &info);
+    }
+    mFlushing = false;
 }

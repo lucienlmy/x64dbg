@@ -64,6 +64,11 @@ Validates that singular comment operations emit exactly one non-bulk callback.
 
 Validates that batch comment operations emit bulk callbacks.
 
+### `comment-reentrant`
+
+Validates that an operation triggered reentrantly by a batch callback is delivered only
+after the in-flight batch completes.
+
 ---
 
 ## Label Tests
@@ -75,6 +80,15 @@ Validates that singular label operations emit exactly one non-bulk callback.
 ### `label-batch`
 
 Validates that batch label operations emit bulk callbacks.
+
+---
+
+## Database Load Tests
+
+### `db-load-reentrant`
+
+Validates that a regular mutation triggered from `CB_DBLOADOPERATION` is emitted as
+`CB_DBOPERATION`. Cross-type callback ordering is intentionally not asserted.
 
 ---
 
