@@ -288,35 +288,62 @@ ENUM_U8_END(DbOperationType);
 
 typedef struct
 {
+    uint8_t reserved;
+} DbBookmarkOperation;
+
+typedef struct
+{
+    const char* text;
+} DbLabelOperation;
+
+typedef struct
+{
+    const char* text;
+} DbCommentOperation;
+
+typedef struct
+{
+    duint end;
+    duint parent;
+    uint32_t icount;
+} DbFunctionOperation;
+
+typedef struct
+{
+    duint end;
+    duint parent;
+    uint32_t icount;
+    int32_t depth;
+} DbLoopOperation;
+
+typedef struct
+{
+    duint end;
+    uint32_t icount;
+} DbArgumentOperation;
+
+typedef struct
+{
+    duint end;
+    duint color;
+} DbAddressColorOperation;
+
+typedef struct
+{
     DbOperationType opType;
     DbItemType itemType;
     bool manual;
     duint modhash; // Use DbgFunctions()->ModNameFromHash
     duint address; // RVA if modhash != 0 else VA
-    // WARNING: DO NOT ACCESS DATA BEYOND ITEM TYPE
     union
     {
-        // Bookmark (no fields)
-
-        // Label, Comment
-        struct
-        {
-            const char* text;
-        };
-
-        // Function, Loop, Argument
-        // Address Color uses end and color.
-        struct
-        {
-            duint end;
-            union
-            {
-                duint parent;
-                duint color;
-            };
-            uint32_t icount;
-            int32_t depth;
-        };
+        DbBookmarkOperation bookmark;
+        DbLabelOperation label;
+        DbCommentOperation comment;
+        DbFunctionOperation function;
+        DbLoopOperation loop;
+        DbArgumentOperation argument;
+        DbAddressColorOperation addressColor;
     };
 } DbOperation;
 

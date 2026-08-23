@@ -96,7 +96,7 @@ public:
     bool followInstruction(duint rva);
 
     //color
-    void setAddressColor(duint vaStart, duint vaEnd, unsigned int preset);
+    void setAddressColor(duint vaStart, duint vaEnd, unsigned int color);
     void clearAddressColor(duint vaStart, duint vaEnd);
 signals:
     void selectionChanged(duint va);

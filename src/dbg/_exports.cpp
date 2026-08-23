@@ -616,11 +616,6 @@ extern "C" DLL_EXPORT bool _dbg_addrinfoset(duint addr, BRIDGE_ADDRINFO* addrinf
         else
             retval = BookmarkDelete(addr);
     }
-    if(addrinfo->flags & flagaddresscolor) //set address color
-    {
-        if(AddressColorSet(addr, addrinfo->color, true))
-            retval = true;
-    }
     return retval;
 }
 

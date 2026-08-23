@@ -62,9 +62,9 @@ protected:
         op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.start;
-        op.end = value.end;
-        op.parent = value.parent;
-        op.icount = value.instructioncount;
+        op.function.end = value.end;
+        op.function.parent = value.parent;
+        op.function.icount = value.instructioncount;
         return true;
     }
 };

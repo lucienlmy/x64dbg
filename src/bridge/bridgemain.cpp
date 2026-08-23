@@ -684,11 +684,6 @@ BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* color)
     return true;
 }
 
-BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int color)
-{
-    return DbgSetAddressColorRange(addr, addr, color);
-}
-
 BRIDGE_IMPEXP bool DbgSetAddressColorRange(duint start, duint end, unsigned int color)
 {
     if(!start || start > end)

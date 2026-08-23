@@ -1680,8 +1680,8 @@ void CPUDisassembly::setAddressColorSlot()
     if(!action)
         return;
 
-    unsigned int preset = action->data().toUInt();
-    setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), preset);
+    unsigned int color = action->data().toUInt();
+    setAddressColor(rvaToVa(getSelectionStart()), rvaToVa(getSelectionEnd()), color);
 
     GuiUpdateAllViews();
 }

@@ -1,10 +1,10 @@
 # addresscolordel
 
-Remove the background color from an address or range. When called without arguments, removes color from the current selection.
+Remove the background color from an address or range.
 
 ## arguments
 
-`arg1` (Optional) Address to remove color from, or start of range. If not provided, removes color from the current selection.
+`arg1` Address to remove color from, or start of range.
 
 `arg2` (Optional) End of range to remove color from. If provided along with arg1, removes color from the entire range.
 

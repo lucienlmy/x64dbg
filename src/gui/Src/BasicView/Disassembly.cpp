@@ -2450,9 +2450,9 @@ int Disassembly::accessibilitySelectedRow() const
     return -1;
 }
 
-void Disassembly::setAddressColor(duint vaStart, duint vaEnd, unsigned int preset)
+void Disassembly::setAddressColor(duint vaStart, duint vaEnd, unsigned int color)
 {
-    DbgSetAddressColorRange(vaStart, vaEnd, preset);
+    DbgSetAddressColorRange(vaStart, vaEnd, color);
     updateViewport();
 }
 

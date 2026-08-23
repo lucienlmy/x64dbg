@@ -31,8 +31,8 @@ protected:
         op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.start;
-        op.end = value.end;
-        op.color = value.color;
+        op.addressColor.end = value.end;
+        op.addressColor.color = value.color;
         return true;
     }
 };

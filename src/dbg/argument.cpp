@@ -56,8 +56,8 @@ protected:
         op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.start;
-        op.end = value.end;
-        op.icount = value.instructioncount;
+        op.argument.end = value.end;
+        op.argument.icount = value.instructioncount;
         return true;
     }
 };

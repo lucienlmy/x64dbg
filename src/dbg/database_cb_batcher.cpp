@@ -63,10 +63,15 @@ void DbCallbackBatcher::add(DbOperation & op, bool loading)
     if(!mActive)
         return;
 
-    if((op.itemType == DbItemTypeComment || op.itemType == DbItemTypeLabel) && op.text != nullptr) // save c string in temporary string vector which will be cleared on flush
+    if(op.itemType == DbItemTypeComment && op.comment.text != nullptr)
     {
-        mStrings.emplace_back(op.text);
-        op.text = mStrings.back().c_str();
+        mStrings.emplace_back(op.comment.text);
+        op.comment.text = mStrings.back().c_str();
+    }
+    else if(op.itemType == DbItemTypeLabel && op.label.text != nullptr)
+    {
+        mStrings.emplace_back(op.label.text);
+        op.label.text = mStrings.back().c_str();
     }
 
     mOperations.emplace_back(op);

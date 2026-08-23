@@ -31,7 +31,7 @@ protected:
         op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.addr;
-        op.text = value.text.c_str();
+        op.comment.text = value.text.c_str();
         return true;
     }
 };

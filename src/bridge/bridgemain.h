@@ -1074,6 +1074,13 @@ typedef struct
 
 typedef struct
 {
+    duint start;
+    duint end;
+    unsigned int color;
+} ADDRESSCOLOR_RANGE;
+
+typedef struct
+{
     duint addr;
     XREFTYPE type;
 } XREF_RECORD;
@@ -1247,16 +1254,8 @@ BRIDGE_IMPEXP DEBUG_ENGINE DbgGetDebugEngine();
 BRIDGE_IMPEXP bool DbgGetSymbolInfoAt(duint addr, SYMBOLINFO* info);
 BRIDGE_IMPEXP duint DbgXrefAddMulti(const XREF_EDGE* edges, duint count);
 BRIDGE_IMPEXP void DbgUpdateGui(duint disasm_addr, bool stack);
-typedef struct
-{
-    duint start;
-    duint end;
-    unsigned int color;
-} ADDRESSCOLOR_RANGE;
-
-BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* preset);
-BRIDGE_IMPEXP bool DbgSetAddressColorAt(duint addr, unsigned int preset);
-BRIDGE_IMPEXP bool DbgSetAddressColorRange(duint start, duint end, unsigned int preset);
+BRIDGE_IMPEXP bool DbgGetAddressColorAt(duint addr, unsigned int* color);
+BRIDGE_IMPEXP bool DbgSetAddressColorRange(duint start, duint end, unsigned int color);
 BRIDGE_IMPEXP void DbgDelAddressColorRange(duint start, duint end);
 
 typedef enum
