@@ -19,6 +19,7 @@ private:
     void flush();
 
     std::vector<DbOperation> mOperations;
+    std::vector<const DbOperation*> mOpList;
     std::deque<std::string> mStrings;
     DbCallbackBatcher* mPrevious = nullptr;
     uint32_t mBatchId = 0;

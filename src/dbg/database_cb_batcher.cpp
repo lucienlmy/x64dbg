@@ -1,80 +1,9 @@
 #include "database_cb_batcher.h"
 #include <atomic>
-#include <utility>
 #include "_plugins.h"
 #include "plugin_loader.h"
 
 thread_local DbCallbackBatcher* DbCallbackBatcher::tActiveBatcher = nullptr;
-
-namespace
-{
-    struct PendingDbCallback
-    {
-        explicit PendingDbCallback(bool loading, uint32_t batchId)
-            : loading(loading), batchId(batchId)
-        {
-        }
-
-        void add(const DbOperation & operation)
-        {
-            auto copy = operation;
-            if((copy.itemType == DbItemTypeComment || copy.itemType == DbItemTypeLabel) && copy.text != nullptr)
-            {
-                strings.emplace_back(copy.text);
-                copy.text = strings.back().c_str();
-            }
-            operations.emplace_back(copy);
-        }
-
-        void deliver()
-        {
-            auto string = strings.begin();
-            for(auto & operation : operations)
-            {
-                if((operation.itemType == DbItemTypeComment || operation.itemType == DbItemTypeLabel) && operation.text != nullptr)
-                {
-                    ASSERT_ALWAYS(string != strings.end());
-                    operation.text = string++->c_str();
-                }
-            }
-
-            std::vector<const DbOperation*> operationList;
-            operationList.reserve(operations.size());
-            for(const auto & operation : operations)
-                operationList.push_back(&operation);
-
-            PLUG_CB_DBOPERATION info;
-            info.operations = operationList.data();
-            info.count = operationList.size();
-            info.batchId = batchId;
-            plugincbcall(loading ? CB_DBLOADOPERATION : CB_DBOPERATION, &info);
-        }
-
-        std::vector<DbOperation> operations;
-        std::deque<std::string> strings;
-        bool loading;
-        uint32_t batchId;
-    };
-
-    thread_local bool deliveringDbCallbacks = false;
-    thread_local std::deque<PendingDbCallback> pendingDbCallbacks;
-
-    void deliverDbCallback(PendingDbCallback callback)
-    {
-        pendingDbCallbacks.emplace_back(std::move(callback));
-        if(deliveringDbCallbacks)
-            return;
-
-        deliveringDbCallbacks = true;
-        while(!pendingDbCallbacks.empty())
-        {
-            auto current = std::move(pendingDbCallbacks.front());
-            pendingDbCallbacks.pop_front();
-            current.deliver();
-        }
-        deliveringDbCallbacks = false;
-    }
-}
 
 DbCallbackBatcher::DbCallbackBatcher(bool loading)
     : mLoading(loading)
@@ -118,9 +47,14 @@ void DbCallbackBatcher::Add(DbOperation & op, bool loading)
     }
     else
     {
-        PendingDbCallback callback(loading, 0);
-        callback.add(op);
-        deliverDbCallback(std::move(callback));
+        PLUG_CB_DBOPERATION info;
+        const DbOperation* opList = &op;
+
+        info.operations = &opList;
+        info.count = 1;
+        info.batchId = 0;
+
+        plugincbcall(loading ? CB_DBLOADOPERATION : CB_DBOPERATION, &info);
     }
 }
 
@@ -132,7 +66,7 @@ void DbCallbackBatcher::add(DbOperation & op, bool loading)
     if(!mActive)
         return;
 
-    if((op.itemType == DbItemTypeComment || op.itemType == DbItemTypeLabel) && op.text != nullptr) // save c string in temporary string vector which will be cleared on flush
+    if(op.text != nullptr && (op.itemType == DbItemTypeComment || op.itemType == DbItemTypeLabel)) // save c string in temporary string vector which will be cleared on flush
     {
         mStrings.emplace_back(op.text);
         op.text = mStrings.back().c_str();
@@ -152,22 +86,26 @@ void DbCallbackBatcher::flush()
     if(mOperations.empty())
         return;
 
-    PendingDbCallback callback(mLoading, mBatchId);
-    callback.operations.reserve(mOperations.size());
-    for(const auto & operation : mOperations)
-        callback.add(operation);
+    mOpList.resize(mOperations.size());
+    for(size_t i = 0; i < mOperations.size(); i++)
+        mOpList[i] = &mOperations[i];
 
-    mOperations.clear();
-    mStrings.clear();
+    PLUG_CB_DBOPERATION info;
+    info.operations = mOpList.data();
+    info.count = mOpList.size();
+    info.batchId = mBatchId;
 
-    // A callback can mutate the database. Queue those nested notifications and
-    // deliver them only after every plugin has received this older batch.
+    // Do not let reentrant database callbacks append to the batch being delivered.
     auto activeBatcher = DbCallbackBatcher::tActiveBatcher;
     if(activeBatcher == this)
         DbCallbackBatcher::tActiveBatcher = mPrevious;
 
-    deliverDbCallback(std::move(callback));
+    plugincbcall(mLoading ? CB_DBLOADOPERATION : CB_DBOPERATION, &info);
 
     if(activeBatcher == this)
         DbCallbackBatcher::tActiveBatcher = activeBatcher;
+
+    mOperations.clear();
+    mOpList.clear();
+    mStrings.clear();
 }

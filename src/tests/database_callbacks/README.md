@@ -12,8 +12,6 @@ The fixture focuses on verifying that database mutations generate the correct `C
 * optional function end address
 * optional loop nesting depth
 * single vs bulk callback behavior
-* exported callback auto-registration
-* ordering of mutations made reentrantly from a callback
 
 ## Why
 
@@ -65,11 +63,6 @@ Validates that singular comment operations emit exactly one non-bulk callback.
 ### `comment-batch`
 
 Validates that batch comment operations emit bulk callbacks.
-
-### `comment-reentrant`
-
-Validates that a comment added reentrantly from a batch callback is delivered only
-after every plugin has received the older batch.
 
 ---
 
