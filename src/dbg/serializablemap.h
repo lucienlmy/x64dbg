@@ -110,6 +110,7 @@ public:
 
     bool Add(const TValue & value)
     {
+        DbCallbackOperation callbackOperation;
         bool added;
         {
             EXCLUSIVE_ACQUIRE(TLock);
@@ -146,6 +147,7 @@ public:
 
     bool Delete(const TKey & key)
     {
+        DbCallbackOperation callbackOperation;
         TValue value;
         bool erased;
         {
@@ -173,6 +175,7 @@ public:
 
     void DeleteWhere(TValuePred predicate)
     {
+        DbCallbackOperation callbackOperation;
         std::vector<TValue> erased;
         {
             EXCLUSIVE_ACQUIRE(TLock);
@@ -216,6 +219,7 @@ public:
 
     void Clear(bool terminating)
     {
+        DbCallbackOperation callbackOperation;
         TMap empty;
         {
             EXCLUSIVE_ACQUIRE(TLock);
@@ -258,6 +262,7 @@ public:
 
     void CacheLoad(JSON root, const char* keyprefix = nullptr)
     {
+        DbCallbackOperation callbackOperation;
         auto jsonValues = json_object_get(root, keyprefix ? (keyprefix + String(jsonKey())).c_str() : jsonKey());
         if(!jsonValues)
             return;

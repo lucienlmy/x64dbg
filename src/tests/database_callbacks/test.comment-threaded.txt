@@ -1,0 +1,5 @@
+init tests/database_callbacks.exe
+
+_c1 = database_callbacks:VariableTarget
+
+dbthreadedcomments _c1

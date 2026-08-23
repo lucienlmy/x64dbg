@@ -56,12 +56,14 @@ namespace
         uint32_t batchId;
     };
 
-    thread_local bool deliveringDbCallbacks = false;
-    thread_local std::deque<PendingDbCallback> pendingDbCallbacks;
+    std::recursive_mutex dbCallbackMutex;
+    thread_local size_t dbCallbackOperationDepth = 0;
+    bool deliveringDbCallbacks = false;
+    std::deque<PendingDbCallback> pendingDbCallbacks;
 
-    void deliverDbCallback(PendingDbCallback callback)
+    void drainDbCallbacks()
     {
-        pendingDbCallbacks.emplace_back(std::move(callback));
+        std::unique_lock<std::recursive_mutex> lock(dbCallbackMutex);
         if(deliveringDbCallbacks)
             return;
 
@@ -70,10 +72,38 @@ namespace
         {
             auto current = std::move(pendingDbCallbacks.front());
             pendingDbCallbacks.pop_front();
+            lock.unlock();
             current.deliver();
+            lock.lock();
         }
         deliveringDbCallbacks = false;
     }
+
+    void deliverDbCallback(PendingDbCallback callback)
+    {
+        {
+            std::lock_guard<std::recursive_mutex> lock(dbCallbackMutex);
+            pendingDbCallbacks.emplace_back(std::move(callback));
+        }
+        if(dbCallbackOperationDepth == 0)
+            drainDbCallbacks();
+    }
+}
+
+DbCallbackOperation::DbCallbackOperation()
+    : mLock(dbCallbackMutex)
+{
+    dbCallbackOperationDepth++;
+}
+
+DbCallbackOperation::~DbCallbackOperation()
+{
+    ASSERT_ALWAYS(dbCallbackOperationDepth > 0);
+    dbCallbackOperationDepth--;
+    const auto drain = dbCallbackOperationDepth == 0;
+    mLock.unlock();
+    if(drain)
+        drainDbCallbacks();
 }
 
 DbCallbackBatcher::DbCallbackBatcher(bool loading)
@@ -167,6 +197,7 @@ void DbCallbackBatcher::flush()
         DbCallbackBatcher::tActiveBatcher = mPrevious;
 
     deliverDbCallback(std::move(callback));
+    drainDbCallbacks();
 
     if(activeBatcher == this)
         DbCallbackBatcher::tActiveBatcher = activeBatcher;

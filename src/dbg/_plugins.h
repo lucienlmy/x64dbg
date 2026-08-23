@@ -308,7 +308,7 @@ typedef struct
         {
             duint end;
             duint parent;
-            uint32_t icount;
+            duint icount;
             int32_t depth;
         };
     };
