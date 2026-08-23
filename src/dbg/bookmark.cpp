@@ -16,10 +16,9 @@ protected:
     bool populateDbOperation(DbOperation & op, const BOOKMARKSINFO & value) const override
     {
         op.itemType = DbItemTypeBookmark;
+        op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.addr;
-        op.manual = value.manual;
-
         return true;
     }
 };
@@ -60,7 +59,7 @@ void BookmarkCacheSave(JSON Root)
 
 void BookmarkCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
     bookmarks.CacheLoad(Root);
     bookmarks.CacheLoad(Root, "auto"); //legacy support
 }
@@ -70,10 +69,10 @@ bool BookmarkEnum(BOOKMARKSINFO* List, size_t* Size)
     return bookmarks.Enum(List, Size);
 }
 
-void BookmarkClear()
+void BookmarkClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
-    bookmarks.Clear();
+    bookmarks.Clear(Terminating);
 }
 
 void BookmarkGetList(std::vector<BOOKMARKSINFO> & list)

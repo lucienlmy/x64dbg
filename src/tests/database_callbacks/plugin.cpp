@@ -1,3 +1,4 @@
+#include <stdio.h>
 #define WIN32_NO_STATUS
 #include <Windows.h>
 
@@ -21,10 +22,85 @@ namespace
 {
     int gPluginHandle = 0;
     std::vector<TestOperation> operations;
+    bool gOpLogEnabled = false;
 
     void resetState()
     {
         operations.clear();
+    }
+
+    void printOperation(const DbOperation & op, bool dbLoad)
+    {
+        std::string text = op.opType == DbOperationTypeAdd ? "[+]" : "[-]";
+        char temp[256] = "";
+        {
+            text += " address=0x";
+            sprintf_s(temp, "%zx", op.address);
+            text += temp;
+        }
+
+        {
+            char module[MAX_MODULE_SIZE] = "";
+            auto hasModule = DbgFunctions()->ModNameFromHash(op.modhash, module);
+            text += ", module=";
+            if(hasModule)
+                text += module;
+            else
+                text += "<none>";
+        }
+
+        text += ", manual=";
+        text += op.manual ? "true" : "false";
+        text += ", dbload=";
+        text += dbLoad ? "true" : "false";
+
+        auto printRange = [&](const char* type)
+        {
+            text += type;
+
+            text += ", end=0x";
+            sprintf_s(temp, "%zx", op.end);
+            text += temp;
+
+            text += ", parent=0x";
+            sprintf_s(temp, "%zx", op.parent);
+            text += temp;
+
+            text += ", icount=";
+            sprintf_s(temp, "%u", op.icount);
+            text += temp;
+
+            text += ", depth=";
+            sprintf_s(temp, "%d", op.depth);
+            text += temp;
+        };
+
+        text += " type=";
+        switch(op.itemType)
+        {
+        case DbItemTypeBookmark:
+            text += "bookmark";
+            break;
+        case DbItemTypeLabel:
+            text += "label, text=";
+            text += op.text ? op.text : "<nullptr>";
+            break;
+        case DbItemTypeComment:
+            text += "comment, text=";
+            text += op.text ? op.text : "<nullptr>";
+            break;
+        case DbItemTypeFunction:
+            printRange("function");
+            break;
+        case DbItemTypeLoop:
+            printRange("loop");
+            break;
+        case DbItemTypeArgument:
+            printRange("argument");
+            break;
+        }
+
+        _plugin_logputs(text.c_str());
     }
 
     void cbPlugin(CBTYPE cbType, void* callbackInfo)
@@ -35,14 +111,18 @@ namespace
             return;
         }
 
-        if(cbType == CB_DBOPERATION)
+        if(cbType == CB_DBOPERATION || cbType == CB_DBLOADOPERATION)
         {
-            PLUG_CB_DBOPERATION * info = (PLUG_CB_DBOPERATION*) callbackInfo;
+            auto info = (PLUG_CB_DBOPERATION*) callbackInfo;
 
             for(size_t i = 0; i < info->count; i ++)
             {
-                DbOperation & operation = info->operations[i];
-                std::string saved = "";
+                const DbOperation & operation = *info->operations[i];
+
+                if(gOpLogEnabled)
+                    printOperation(operation, cbType == CB_DBLOADOPERATION);
+
+                std::string saved;
 
                 if(operation.text && (operation.itemType == DbItemTypeComment || operation.itemType == DbItemTypeLabel))
                 {
@@ -68,7 +148,7 @@ namespace
         return _plugin_testassert(true, "state reset");
     }
 
-    static bool getOpType(char s, DbOperationType & type)
+    bool getOpType(char s, DbOperationType & type)
     {
         if(s == 'a')
             type = DbOperationTypeAdd;
@@ -80,7 +160,7 @@ namespace
         return true;
     }
 
-    static bool getItemType(char s, DbItemType & type)
+    bool getItemType(char s, DbItemType & type)
     {
         if(s == 'f')
             type = DbItemTypeFunction;
@@ -175,6 +255,16 @@ namespace
 
         return true;
     }
+
+    bool cbOpLog(int argc, char** argv)
+    {
+        bool newState = !gOpLogEnabled;
+        if(argc > 1)
+            newState = evalExpr(argv[1]);
+        gOpLogEnabled = newState;
+        _plugin_logprintf("oplog state: %s\n", gOpLogEnabled ? "on" : "off");
+        return true;
+    }
 }
 
 extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
@@ -184,8 +274,10 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     strncpy_s(initStruct->pluginName, sizeof(initStruct->pluginName), X64DBG_TEST_NAME, _TRUNCATE);
     gPluginHandle = initStruct->pluginHandle;
     _plugin_registercallback(gPluginHandle, CB_DBOPERATION, cbPlugin);
+    _plugin_registercallback(gPluginHandle, CB_DBLOADOPERATION, cbPlugin);
     _plugin_registercallback(gPluginHandle, CB_INITDEBUG, cbPlugin);
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
+    _plugin_registercommand(gPluginHandle, "dboplog", cbOpLog, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
     return true;

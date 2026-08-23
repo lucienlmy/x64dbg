@@ -54,7 +54,7 @@ void AdvancedAnalysis::SetMarkers()
         }
     }
 
-    FunctionClear();
+    FunctionClear(false);
     for(const auto & function : mFunctions)
     {
         duint start = ~0;

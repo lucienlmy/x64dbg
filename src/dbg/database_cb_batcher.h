@@ -1,28 +1,29 @@
-#ifndef _DATABASE_BATCHER_H
-#define _DATABASE_BATCHER_H
+#pragma once
 
-#include "plugin_loader.h"
-#include "database.h"
-
-#define DB_MAX_CB_BATCH_SIZE ( 8096 ) // max number of operations in a single plugin callback
+#include <deque>
+#include "_plugins.h"
 
 class DbCallbackBatcher
 {
 public:
-    DbCallbackBatcher();
+    explicit DbCallbackBatcher(bool loading = false);
     ~DbCallbackBatcher();
 
-    static void Add(DbOperation & op);
-    void Flush();
-
-    static DbCallbackBatcher* Get();
-    static thread_local DbCallbackBatcher* tActiveBatcher; // per thread batch object
+    static bool IsActive(bool loading = false);
+    static void Add(DbOperation & op, bool loading = false);
 
 private:
-    std::vector<DbOperation> mOperations;
-    std::vector<std::string> mStrings;
-    DbCallbackBatcher* mPrevious;
-    bool mOwner; // if a batcher is defined in a thread where there's already a batcher on the stack, this is set to false
-};
+    static thread_local DbCallbackBatcher* tActiveBatcher; // per thread batch object
 
-#endif // _DATABASE_BATCHER_H
+    void add(DbOperation & op, bool loading);
+    void flush();
+
+    std::vector<DbOperation> mOperations;
+    std::vector<const DbOperation*> mOpList;
+    std::deque<std::string> mStrings;
+    DbCallbackBatcher* mPrevious = nullptr;
+    uint32_t mBatchId = 0;
+    bool mLoading = false;
+    bool mActive = false;
+    bool mOwner = false; // if a batcher is defined in a thread where there's already a batcher on the stack, this is set to false
+};

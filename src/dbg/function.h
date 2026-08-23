@@ -26,7 +26,7 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual = false);
 void FunctionCacheSave(JSON Root);
 void FunctionCacheLoad(JSON Root);
 bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size);
-void FunctionClear();
+void FunctionClear(bool Terminating);
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list);
 bool FunctionGetInfo(duint Address, FUNCTIONSINFO & info);
 

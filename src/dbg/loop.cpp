@@ -1,5 +1,7 @@
 #include "loop.h"
+#include "_plugins.h"
 #include "memory.h"
+#include "plugin_loader.h"
 #include "threading.h"
 #include "module.h"
 #include "debugger.h"
@@ -10,22 +12,21 @@ static std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> loops;
 static void populateDbOperation(DbOperation & op, const LOOPSINFO & info)
 {
     op.itemType = DbItemTypeLoop;
+    op.manual = info.manual;
     op.modhash = info.modhash;
     op.address = info.start;
     op.end = info.end;
-    op.depth = info.depth;
-    op.instructioncount = info.instructioncount;
     op.parent = info.parent;
-    op.manual = info.manual;
+    op.icount = info.instructioncount;
+    op.depth = info.depth;
 }
 
-static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info, bool dbload = false)
+static void notifyDbOperation(DbOperationType opType, const LOOPSINFO & info, bool loading = false)
 {
     DbOperation op {};
     op.opType = opType;
     populateDbOperation(op, info);
-    op.dbload = dbload;
-    DbCallbackBatcher::Add(op);
+    DbCallbackBatcher::Add(op, loading);
 }
 
 bool LoopAdd(duint Start, duint End, bool Manual, duint instructionCount)
@@ -309,11 +310,12 @@ void LoopCacheSave(JSON Root)
 
 void LoopCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
 
     // Inline lambda to parse each JSON entry
     auto AddLoops = [](const JSON Object, bool Manual)
     {
+        auto active = DbCallbackBatcher::IsActive(true);
         size_t i;
         JSON value;
 
@@ -344,7 +346,8 @@ void LoopCacheLoad(JSON Root)
                 loops[DepthModuleRange(loopInfo.depth, ModuleRange(loopInfo.modhash, Range(loopInfo.start, loopInfo.end)))] = loopInfo;
             }
 
-            notifyDbOperation(DbOperationTypeAdd, loopInfo, true);
+            if(active)
+                notifyDbOperation(DbOperationTypeAdd, loopInfo, true);
         }
     };
 
@@ -390,7 +393,7 @@ bool LoopEnum(LOOPSINFO* List, size_t* Size)
     return true;
 }
 
-void LoopClear()
+void LoopClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
     std::map<DepthModuleRange, LOOPSINFO, DepthModuleRangeCompare> empty;
@@ -399,6 +402,10 @@ void LoopClear()
         EXCLUSIVE_ACQUIRE(LockLoops);
         std::swap(loops, empty);
     }
+
+    // Do not report termination clear as a DbOperation
+    if(Terminating)
+        return;
 
     for(auto & itr : empty)
     {

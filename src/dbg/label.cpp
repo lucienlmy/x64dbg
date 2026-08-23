@@ -28,11 +28,10 @@ protected:
     bool populateDbOperation(DbOperation & op, const LABELSINFO & value) const override
     {
         op.itemType = DbItemTypeLabel;
+        op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.addr;
         op.text = value.text.c_str();
-        op.manual = value.manual;
-
         return true;
     }
 };
@@ -144,15 +143,15 @@ void LabelCacheSave(JSON Root)
 
 void LabelCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
     labels.CacheLoad(Root);
     labels.CacheLoad(Root, "auto"); //legacy support
 }
 
-void LabelClear()
+void LabelClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
-    labels.Clear();
+    labels.Clear(Terminating);
     tempLabels.clear();
 }
 

@@ -1,5 +1,6 @@
 #include "xrefs.h"
 #include "addrinfo.h"
+#include "database_cb_batcher.h"
 
 struct XREFSINFO : AddrInfo
 {
@@ -224,10 +225,11 @@ void XrefCacheSave(JSON Root)
 
 void XrefCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher(true);
     xrefs.CacheLoad(Root);
 }
 
-void XrefClear()
+void XrefClear(bool Terminating)
 {
-    xrefs.Clear();
+    xrefs.Clear(Terminating);
 }

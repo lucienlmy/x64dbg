@@ -1,6 +1,7 @@
 #include "encodemap.h"
 #include <unordered_map>
 #include "addrinfo.h"
+#include "database_cb_batcher.h"
 #include <zydis_wrapper.h>
 
 struct ENCODEMAP : AddrInfo
@@ -354,14 +355,15 @@ void EncodeMapCacheSave(JSON Root)
 
 void EncodeMapCacheLoad(JSON Root)
 {
+    DbCallbackBatcher batcher(true);
     encmaps.CacheLoad(Root);
 }
 
-void EncodeMapClear()
+void EncodeMapClear(bool Terminating)
 {
     EXCLUSIVE_ACQUIRE(LockEncodeMaps);
     for(auto & encmap : encmaps.GetDataUnsafe())
         EncodeMapReleaseBuffer(encmap.second.data, false);
     EXCLUSIVE_RELEASE();
-    encmaps.Clear();
+    encmaps.Clear(Terminating);
 }

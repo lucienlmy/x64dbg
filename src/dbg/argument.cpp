@@ -53,12 +53,11 @@ protected:
     bool populateDbOperation(DbOperation & op, const ARGUMENTSINFO & value) const override
     {
         op.itemType = DbItemTypeArgument;
+        op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.start;
         op.end = value.end;
-        op.instructioncount = value.instructioncount;
-        op.manual = value.manual;
-
+        op.icount = value.instructioncount;
         return true;
     }
 };
@@ -125,7 +124,7 @@ void ArgumentDelRange(duint Start, duint End, bool DeleteManual)
     // 0x00000000 - 0xFFFFFFFF
     if(Start == 0 && End == ~0)
     {
-        ArgumentClear();
+        ArgumentClear(false);
     }
     else
     {
@@ -157,14 +156,14 @@ void ArgumentCacheSave(JSON Root)
 
 void ArgumentCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
     arguments.CacheLoad(Root);
 }
 
-void ArgumentClear()
+void ArgumentClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
-    arguments.Clear();
+    arguments.Clear(Terminating);
 }
 
 void ArgumentGetList(std::vector<ARGUMENTSINFO> & list)

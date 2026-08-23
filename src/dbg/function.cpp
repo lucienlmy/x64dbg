@@ -59,13 +59,12 @@ protected:
     bool populateDbOperation(DbOperation & op, const FUNCTIONSINFO & value) const override
     {
         op.itemType = DbItemTypeFunction;
+        op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.start;
         op.end = value.end;
-        op.instructioncount = value.instructioncount;
         op.parent = value.parent;
-        op.manual = value.manual;
-
+        op.icount = value.instructioncount;
         return true;
     }
 };
@@ -136,7 +135,7 @@ void FunctionDelRange(duint Start, duint End, bool DeleteManual)
     // 0x00000000 - 0xFFFFFFFF
     if(Start == 0 && End == ~0)
     {
-        FunctionClear();
+        FunctionClear(false);
     }
     else
     {
@@ -168,7 +167,7 @@ void FunctionCacheSave(JSON Root)
 
 void FunctionCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
     functions.CacheLoad(Root);
     functions.CacheLoad(Root, "auto"); //legacy support
 }
@@ -178,10 +177,10 @@ bool FunctionEnum(FUNCTIONSINFO* List, size_t* Size)
     return functions.Enum(List, Size);
 }
 
-void FunctionClear()
+void FunctionClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
-    functions.Clear();
+    functions.Clear(Terminating);
 }
 
 void FunctionGetList(std::vector<FUNCTIONSINFO> & list)

@@ -2,6 +2,7 @@
 #define _SERIALIZABLEMAP_H
 
 #include "_global.h"
+#include "_plugins.h"
 #include "threading.h"
 #include "module.h"
 #include "memory.h"
@@ -12,9 +13,7 @@ template<class TValue>
 class JSONWrapper
 {
 public:
-    virtual ~JSONWrapper()
-    {
-    }
+    virtual ~JSONWrapper() = default;
 
     void SetJson(JSON json)
     {
@@ -107,9 +106,7 @@ class SerializableTMap
 public:
     using TValuePred = std::function<bool(const TValue & value)>;
 
-    virtual ~SerializableTMap()
-    {
-    }
+    virtual ~SerializableTMap() = default;
 
     bool Add(const TValue & value)
     {
@@ -118,7 +115,7 @@ public:
             EXCLUSIVE_ACQUIRE(TLock);
             added = addNoLock(value);
         }
-        if(added)
+        if(added && DbCallbackBatcher::IsActive())
         {
             DbOperation op {};
             op.opType = DbOperationTypeAdd;
@@ -161,7 +158,7 @@ public:
                 mMap.erase(found);
             }
         }
-        if(erased)
+        if(erased && DbCallbackBatcher::IsActive())
         {
             DbOperation op {};
             op.opType = DbOperationTypeRemove;
@@ -191,14 +188,18 @@ public:
                     ++itr;
             }
         }
-        for(const TValue & value : erased)
-        {
-            DbOperation op {};
-            op.opType = DbOperationTypeRemove;
 
-            if(populateDbOperation(op, value))
+        if(DbCallbackBatcher::IsActive())
+        {
+            for(const TValue & value : erased)
             {
-                DbCallbackBatcher::Add(op);
+                DbOperation op {};
+                op.opType = DbOperationTypeRemove;
+
+                if(populateDbOperation(op, value))
+                {
+                    DbCallbackBatcher::Add(op);
+                }
             }
         }
     }
@@ -213,13 +214,18 @@ public:
         return getWhere(predicate, nullptr);
     }
 
-    void Clear()
+    void Clear(bool terminating)
     {
         TMap empty;
         {
             EXCLUSIVE_ACQUIRE(TLock);
             std::swap(mMap, empty);
         }
+
+        // Do not report termination clear or inactive callback as a DbOperation
+        if(terminating || !DbCallbackBatcher::IsActive())
+            return;
+
         for(const auto & kv : empty)
         {
             DbOperation op {};
@@ -255,6 +261,7 @@ public:
         auto jsonValues = json_object_get(root, keyprefix ? (keyprefix + String(jsonKey())).c_str() : jsonKey());
         if(!jsonValues)
             return;
+        auto active = DbCallbackBatcher::IsActive(true);
         size_t i;
         JSON jsonValue;
         TSerializer deserializer;
@@ -270,15 +277,14 @@ public:
                     added = addNoLock(value);
                 }
 
-                if(added)
+                if(added && active)
                 {
                     DbOperation op {};
                     op.opType = DbOperationTypeAdd;
 
                     if(populateDbOperation(op, value))
                     {
-                        op.dbload = true;
-                        DbCallbackBatcher::Add(op);
+                        DbCallbackBatcher::Add(op, true);
                     }
                 }
             }
@@ -390,7 +396,7 @@ struct SerializableModuleHashMap : SerializableUnorderedMap<TLock, duint, TValue
         // 0x00000000 - 0xFFFFFFFF
         if(start == 0 && end == ~0)
         {
-            this->Clear();
+            this->Clear(false);
         }
         else
         {

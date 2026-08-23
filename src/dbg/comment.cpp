@@ -28,11 +28,10 @@ protected:
     bool populateDbOperation(DbOperation & op, const COMMENTSINFO & value) const override
     {
         op.itemType = DbItemTypeComment;
+        op.manual = value.manual;
         op.modhash = value.modhash;
         op.address = value.addr;
         op.text = value.text.c_str();
-        op.manual = value.manual;
-
         return true;
     }
 };
@@ -88,7 +87,7 @@ void CommentCacheSave(JSON Root)
 
 void CommentCacheLoad(JSON Root)
 {
-    DbCallbackBatcher batcher;
+    DbCallbackBatcher batcher(true);
     comments.CacheLoad(Root);
     comments.CacheLoad(Root, "auto"); //legacy support
 }
@@ -98,10 +97,10 @@ bool CommentEnum(COMMENTSINFO* List, size_t* Size)
     return comments.Enum(List, Size);
 }
 
-void CommentClear()
+void CommentClear(bool Terminating)
 {
     DbCallbackBatcher batcher;
-    comments.Clear();
+    comments.Clear(Terminating);
 }
 
 void CommentGetList(std::vector<COMMENTSINFO> & list)
