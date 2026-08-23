@@ -1,25 +1,7 @@
 #pragma once
 
 #include <deque>
-#include <mutex>
 #include "_plugins.h"
-
-class DbCallbackOperation
-{
-public:
-    DbCallbackOperation();
-    ~DbCallbackOperation();
-
-    void DrainAndRelock();
-
-    DbCallbackOperation(const DbCallbackOperation &) = delete;
-    DbCallbackOperation & operator=(const DbCallbackOperation &) = delete;
-
-private:
-    std::unique_lock<std::recursive_mutex> mLock;
-    DbCallbackOperation* mPreviousOwner = nullptr;
-    bool mOwner = false;
-};
 
 class DbCallbackBatcher
 {
@@ -33,12 +15,11 @@ public:
 private:
     static thread_local DbCallbackBatcher* tActiveBatcher; // per thread batch object
 
-    DbCallbackOperation mOperation;
-
     void add(DbOperation & op, bool loading);
     void flush();
 
     std::vector<DbOperation> mOperations;
+    std::vector<const DbOperation*> mOpList;
     std::deque<std::string> mStrings;
     DbCallbackBatcher* mPrevious = nullptr;
     uint32_t mBatchId = 0;

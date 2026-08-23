@@ -29,6 +29,8 @@ const char* FunctionPass::GetName()
 
 bool FunctionPass::Analyse()
 {
+    DbCallbackBatcher batcher;
+
     // THREAD_WORK = ceil(TOTAL / # THREADS)
     duint workAmount = (m_MainBlocks.size() + (IdealThreadCount() - 1)) / IdealThreadCount();
 
@@ -60,7 +62,6 @@ bool FunctionPass::Analyse()
 
     dprintf(QT_TRANSLATE_NOOP("DBG", "%u functions\n"), DWORD(funcs.size()));
 
-    DbCallbackBatcher batcher;
     FunctionDelRange(m_VirtualStart, m_VirtualEnd - 1, false);
     for(auto & func : funcs)
     {

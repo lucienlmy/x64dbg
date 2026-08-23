@@ -5,10 +5,7 @@
 #include <array>
 #include <atomic>
 #include <cstring>
-#include <mutex>
 #include <string>
-#include <thread>
-#include <vector>
 
 #include "_plugins.h"
 #include "bridgemain.h"
@@ -24,20 +21,12 @@ struct TestOperation
 namespace
 {
     int gPluginHandle = 0;
-    std::mutex gOperationsMutex;
     std::vector<TestOperation> operations;
     bool gOpLogEnabled = false;
-    bool gReentrantCommentSetPending = false;
-    bool gReentrantCommentSetThreaded = false;
-    duint gReentrantCommentAddress = 0;
-    std::string gReentrantCommentText;
 
     void resetState()
     {
-        std::lock_guard<std::mutex> lock(gOperationsMutex);
         operations.clear();
-        gReentrantCommentSetPending = false;
-        gReentrantCommentSetThreaded = false;
     }
 
     void printOperation(const DbOperation & op, bool dbLoad)
@@ -78,7 +67,7 @@ namespace
             text += temp;
 
             text += ", icount=";
-            sprintf_s(temp, "%zu", (size_t)op.icount);
+            sprintf_s(temp, "%u", op.icount);
             text += temp;
 
             text += ", depth=";
@@ -126,29 +115,6 @@ namespace
         {
             auto info = (PLUG_CB_DBOPERATION*) callbackInfo;
 
-            if(cbType == CB_DBOPERATION && gReentrantCommentSetPending)
-            {
-                gReentrantCommentSetPending = false;
-                if(gReentrantCommentSetThreaded)
-                {
-                    gReentrantCommentSetThreaded = false;
-                    std::atomic_bool success = false;
-                    std::thread worker([&success]()
-                    {
-                        success = DbgSetCommentAt(gReentrantCommentAddress, gReentrantCommentText.c_str());
-                    });
-                    worker.join();
-                    _plugin_testassert(success, "threaded reentrant comment update failed");
-                }
-                else
-                {
-                    char command[MAX_SETTING_SIZE];
-                    sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gReentrantCommentAddress, gReentrantCommentText.c_str());
-                    _plugin_testassert(DbgCmdExecDirect(command), "reentrant command failed: %s", command);
-                }
-            }
-
-            std::lock_guard<std::mutex> lock(gOperationsMutex);
             for(size_t i = 0; i < info->count; i ++)
             {
                 const DbOperation & operation = *info->operations[i];
@@ -219,7 +185,6 @@ namespace
         if(argc < 6)
             return false;
 
-        std::lock_guard<std::mutex> lock(gOperationsMutex);
         if(!_plugin_testassert(operations.size() > 0, "no operations in memory"))
             return false;
 
@@ -284,7 +249,6 @@ namespace
         if(argc < 2)
             return false;
 
-        std::lock_guard<std::mutex> lock(gOperationsMutex);
         const duint size = evalExpr(argv[1]);
         if(!_plugin_testassert(size == operations.size(), "total operations size doesn't match (%llu != %llu)", (unsigned long long)size, (unsigned long long)operations.size()))
             return false;
@@ -301,74 +265,6 @@ namespace
         _plugin_logprintf("oplog state: %s\n", gOpLogEnabled ? "on" : "off");
         return true;
     }
-
-    bool cbReentrantCommentSet(int argc, char** argv)
-    {
-        if(argc != 3)
-            return false;
-
-        gReentrantCommentAddress = evalExpr(argv[1]);
-        gReentrantCommentText = argv[2];
-        gReentrantCommentSetPending = true;
-        gReentrantCommentSetThreaded = false;
-        return _plugin_testassert(gReentrantCommentAddress != 0, "failed to resolve reentrant comment address '%s'", argv[1]);
-    }
-
-    bool cbThreadedReentrantCommentSet(int argc, char** argv)
-    {
-        if(!cbReentrantCommentSet(argc, argv))
-            return false;
-        gReentrantCommentSetThreaded = true;
-        return true;
-    }
-
-    bool cbThreadedComments(int argc, char** argv)
-    {
-        if(argc != 2)
-            return false;
-
-        const auto address = evalExpr(argv[1]);
-        if(!_plugin_testassert(address != 0, "failed to resolve threaded comment address '%s'", argv[1]))
-            return false;
-
-        resetState();
-        std::atomic_bool success = true;
-        std::vector<std::thread> threads;
-        for(size_t thread = 0; thread < 4; thread++)
-        {
-            threads.emplace_back([address, thread, &success]()
-            {
-                for(size_t iteration = 0; iteration < 100; iteration++)
-                {
-                    char text[64];
-                    sprintf_s(text, "thread-%zu-%zu", thread, iteration);
-                    if(!DbgSetCommentAt(address, text))
-                        success = false;
-                }
-            });
-        }
-        for(auto & thread : threads)
-            thread.join();
-
-        char actual[MAX_COMMENT_SIZE] = "";
-        if(!DbgGetCommentAt(address, actual))
-            success = false;
-
-        std::lock_guard<std::mutex> lock(gOperationsMutex);
-        const auto mirrorMatches = !operations.empty() && operations.back().text == actual;
-        return _plugin_testassert(success, "a threaded comment update failed") &&
-               _plugin_testassert(mirrorMatches, "callback mirror '%s' does not match database '%s'", operations.empty() ? "<empty>" : operations.back().text.c_str(), actual);
-    }
-}
-
-extern "C" __declspec(dllexport) void CBDBOPERATION(CBTYPE cbType, void* callbackInfo)
-{
-    cbPlugin(cbType, callbackInfo);
-}
-
-extern "C" __declspec(dllexport) void CBDBLOADOPERATION(CBTYPE cbType, void* callbackInfo)
-{
-    cbPlugin(cbType, callbackInfo);
 }
 
 extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
@@ -377,12 +273,11 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     initStruct->sdkVersion = PLUG_SDKVERSION;
     strncpy_s(initStruct->pluginName, sizeof(initStruct->pluginName), X64DBG_TEST_NAME, _TRUNCATE);
     gPluginHandle = initStruct->pluginHandle;
+    _plugin_registercallback(gPluginHandle, CB_DBOPERATION, cbPlugin);
+    _plugin_registercallback(gPluginHandle, CB_DBLOADOPERATION, cbPlugin);
     _plugin_registercallback(gPluginHandle, CB_INITDEBUG, cbPlugin);
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
     _plugin_registercommand(gPluginHandle, "dboplog", cbOpLog, false);
-    _plugin_registercommand(gPluginHandle, "dbreentrantcommentset", cbReentrantCommentSet, false);
-    _plugin_registercommand(gPluginHandle, "dbthreadedreentrantcommentset", cbThreadedReentrantCommentSet, false);
-    _plugin_registercommand(gPluginHandle, "dbthreadedcomments", cbThreadedComments, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
     return true;
