@@ -676,11 +676,11 @@ typedef struct
     char module[MAX_MODULE_SIZE]; //module the address is in
     char label[MAX_LABEL_SIZE];
     char comment[MAX_COMMENT_SIZE];
-    unsigned int color;
     bool isbookmark;
     FUNCTION function;
     LOOP loop;
     FUNCTION args;
+    unsigned int color;
 } BRIDGE_ADDRINFO;
 
 typedef struct SYMBOLINFO_
