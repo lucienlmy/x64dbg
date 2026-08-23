@@ -58,7 +58,6 @@ namespace
 
     std::recursive_mutex dbCallbackMutex;
     thread_local size_t dbCallbackOperationDepth = 0;
-    thread_local DbCallbackOperation* dbCallbackOperationOwner = nullptr;
     bool deliveringDbCallbacks = false;
     std::deque<PendingDbCallback> pendingDbCallbacks;
 
@@ -92,45 +91,19 @@ namespace
 }
 
 DbCallbackOperation::DbCallbackOperation()
+    : mLock(dbCallbackMutex)
 {
-    mPreviousOwner = dbCallbackOperationOwner;
-    mOwner = dbCallbackOperationDepth++ == 0;
-    if(mOwner)
-    {
-        dbCallbackOperationOwner = this;
-        mLock = std::unique_lock<std::recursive_mutex>(dbCallbackMutex);
-    }
+    dbCallbackOperationDepth++;
 }
 
 DbCallbackOperation::~DbCallbackOperation()
 {
     ASSERT_ALWAYS(dbCallbackOperationDepth > 0);
     dbCallbackOperationDepth--;
-    if(mOwner)
-    {
-        ASSERT_ALWAYS(dbCallbackOperationDepth == 0);
-        dbCallbackOperationOwner = mPreviousOwner;
-        mLock.unlock();
-        drainDbCallbacks();
-    }
-}
-
-void DbCallbackOperation::DrainAndRelock()
-{
-    if(!mOwner)
-    {
-        ASSERT_ALWAYS(dbCallbackOperationOwner != nullptr);
-        dbCallbackOperationOwner->DrainAndRelock();
-        return;
-    }
-
-    ASSERT_ALWAYS(mLock.owns_lock());
-    const auto operationDepth = dbCallbackOperationDepth;
-    dbCallbackOperationDepth = 0;
+    const auto drain = dbCallbackOperationDepth == 0;
     mLock.unlock();
-    drainDbCallbacks();
-    mLock.lock();
-    dbCallbackOperationDepth = operationDepth;
+    if(drain)
+        drainDbCallbacks();
 }
 
 DbCallbackBatcher::DbCallbackBatcher(bool loading)
@@ -224,7 +197,7 @@ void DbCallbackBatcher::flush()
         DbCallbackBatcher::tActiveBatcher = mPrevious;
 
     deliverDbCallback(std::move(callback));
-    mOperation.DrainAndRelock();
+    drainDbCallbacks();
 
     if(activeBatcher == this)
         DbCallbackBatcher::tActiveBatcher = activeBatcher;

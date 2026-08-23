@@ -28,7 +28,6 @@ namespace
     std::vector<TestOperation> operations;
     bool gOpLogEnabled = false;
     bool gReentrantCommentSetPending = false;
-    bool gReentrantCommentSetThreaded = false;
     duint gReentrantCommentAddress = 0;
     std::string gReentrantCommentText;
 
@@ -37,7 +36,6 @@ namespace
         std::lock_guard<std::mutex> lock(gOperationsMutex);
         operations.clear();
         gReentrantCommentSetPending = false;
-        gReentrantCommentSetThreaded = false;
     }
 
     void printOperation(const DbOperation & op, bool dbLoad)
@@ -129,23 +127,9 @@ namespace
             if(cbType == CB_DBOPERATION && gReentrantCommentSetPending)
             {
                 gReentrantCommentSetPending = false;
-                if(gReentrantCommentSetThreaded)
-                {
-                    gReentrantCommentSetThreaded = false;
-                    std::atomic_bool success = false;
-                    std::thread worker([&success]()
-                    {
-                        success = DbgSetCommentAt(gReentrantCommentAddress, gReentrantCommentText.c_str());
-                    });
-                    worker.join();
-                    _plugin_testassert(success, "threaded reentrant comment update failed");
-                }
-                else
-                {
-                    char command[MAX_SETTING_SIZE];
-                    sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gReentrantCommentAddress, gReentrantCommentText.c_str());
-                    _plugin_testassert(DbgCmdExecDirect(command), "reentrant command failed: %s", command);
-                }
+                char command[MAX_SETTING_SIZE];
+                sprintf_s(command, "commentset 0x%llX, \"%s\"", (unsigned long long)gReentrantCommentAddress, gReentrantCommentText.c_str());
+                _plugin_testassert(DbgCmdExecDirect(command), "reentrant command failed: %s", command);
             }
 
             std::lock_guard<std::mutex> lock(gOperationsMutex);
@@ -310,16 +294,7 @@ namespace
         gReentrantCommentAddress = evalExpr(argv[1]);
         gReentrantCommentText = argv[2];
         gReentrantCommentSetPending = true;
-        gReentrantCommentSetThreaded = false;
         return _plugin_testassert(gReentrantCommentAddress != 0, "failed to resolve reentrant comment address '%s'", argv[1]);
-    }
-
-    bool cbThreadedReentrantCommentSet(int argc, char** argv)
-    {
-        if(!cbReentrantCommentSet(argc, argv))
-            return false;
-        gReentrantCommentSetThreaded = true;
-        return true;
     }
 
     bool cbThreadedComments(int argc, char** argv)
@@ -381,7 +356,6 @@ extern "C" __declspec(dllexport) bool pluginit(PLUG_INITSTRUCT* initStruct)
     _plugin_registercommand(gPluginHandle, "dbreset", cbReset, false);
     _plugin_registercommand(gPluginHandle, "dboplog", cbOpLog, false);
     _plugin_registercommand(gPluginHandle, "dbreentrantcommentset", cbReentrantCommentSet, false);
-    _plugin_registercommand(gPluginHandle, "dbthreadedreentrantcommentset", cbThreadedReentrantCommentSet, false);
     _plugin_registercommand(gPluginHandle, "dbthreadedcomments", cbThreadedComments, false);
     _plugin_registercommand(gPluginHandle, "assertlastop", cbAssertLastOperation, false);
     _plugin_registercommand(gPluginHandle, "assertopsize", cbAssertOperationsSize, false);
